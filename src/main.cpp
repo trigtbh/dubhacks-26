@@ -417,6 +417,11 @@ int main()
 		std::thread(watchdog).detach();
 
 		auto marked = fan::mark_all(ffd, say);
+		if (marked.empty()) {  // protecting nothing must never look like success
+			fprintf(stderr, "sid-daemon: fatal: could not mark any filesystem; this kernel cannot pause execs "
+					"(needs CONFIG_FANOTIFY_ACCESS_PERMISSIONS)\n");
+			return 2;  // configuration problem: retrying will not help
+		}
 		std::string list;
 		for (auto &m : marked)
 			list += (list.empty() ? "" : ", ") + m;

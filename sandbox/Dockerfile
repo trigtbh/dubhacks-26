@@ -46,7 +46,9 @@ RUN install -d -m 700 /var/lib/sid/explore
 
 COPY sshd_config /etc/ssh/sshd_config.d/10-sandbox.conf
 COPY entrypoint.sh /usr/local/sbin/entrypoint.sh
-RUN chmod 755 /usr/local/sbin/entrypoint.sh \
+# A Windows checkout may have CRLF line endings; "bash\r: not found" would kill the container.
+RUN sed -i 's/\r$//' /usr/local/sbin/entrypoint.sh /etc/ssh/sshd_config.d/10-sandbox.conf \
+    && chmod 755 /usr/local/sbin/entrypoint.sh \
     && echo 'export PATH=/opt/venv/bin:$PATH' > /etc/profile.d/venv.sh \
     && echo "export HF_HOME=/home/${DEV_USER}/.cache/huggingface" >> /etc/profile.d/venv.sh
 

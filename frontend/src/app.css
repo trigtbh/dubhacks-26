@@ -1,0 +1,32 @@
+/* The dashboard's own layout. Colors, type and shapes all come from the design
+   system's tokens and components; nothing here defines a new one. */
+html { background: var(--ground); }
+body.cr-root { margin: 0; min-height: 100vh; box-sizing: border-box; padding: var(--space-4); }
+.wordmark { margin: 0; }
+.top { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-6); }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+#state:not(:empty) { margin-bottom: var(--space-4); }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Wide screens: the page fits the window and each column scrolls on its own. */
+@media (min-width: 900px) {
+  body.cr-root { height: 100vh; padding: var(--space-10); display: flex; flex-direction: column; }
+  .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+  .col { min-height: 0; overflow-y: auto; }
+  .side { position: relative; }
+}
+
+/* Rows. A long argv stops at four lines here and is shown whole in the detail panel. */
+.cr-row .cr-argv { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
+.cr-feed[data-hide] .cr-row--allow { display: none; }
+.cr-art--narrow { width: 40px; }
+.cr-art--wide { width: 240px; max-width: 100%; }
+
+/* Detail panel. */
+.dhead { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+.cr-detail p.why--block { color: var(--rose-ink); }
+.cr-detail .cr-well { max-height: 40vh; overflow-y: auto; }
+
+/* The shader fills the side column while there is nothing else to show. */
+.side .cr-shader { height: 100%; min-height: 240px; }
+@media (max-width: 899px) { .side:empty { display: none; } }

@@ -1,0 +1,22 @@
+[Unit]
+Description=sid dashboard (local web server)
+After=local-fs.target
+
+[Service]
+ExecStart=/usr/local/bin/sid-web
+Environment=SID_WEB_ROOT=/usr/local/share/sid/web
+Restart=always
+RestartSec=1
+# It only reads the event log and answers on a local port, so it gets no privileges.
+User=nobody
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_INET
+MemoryMax=64M
+
+[Install]
+WantedBy=multi-user.target

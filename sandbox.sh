@@ -132,11 +132,27 @@ if [[ "$(dk inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != true ]]; th
     echo "started $NAME"
 fi
 
+dead() {
+    echo "sid: the sandbox container is not running. Its output:" >&2
+    dk logs --tail 40 "$NAME" >&2 || true
+    echo "sid: (try ./sandbox.sh --reset; if the build is the problem, --rebuild)" >&2
+    exit 1
+}
+running() { [[ "$(dk inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" == true ]]; }
+
+# Give a crashing entrypoint a moment to show itself before trusting the container.
+for _ in 1 2 3 4 5 6; do running || break; sleep 0.5; done
+running || dead
+
 # Read the ports back: they may not be the ones we asked for.
-SSH_PORT="$(dk port "$NAME" 22/tcp | head -n1 | sed 's/.*://')"
-DASH_PORT="$(dk port "$NAME" 8080/tcp | head -n1 | sed 's/.*://')"
-[[ -n "$SSH_PORT" ]] || { echo "could not find the container's ssh port" >&2; exit 1; }
-echo "ssh: 127.0.0.1:${SSH_PORT}   dashboard: http://127.0.0.1:${DASH_PORT}"
+SSH_PORT="$(dk port "$NAME" 22/tcp 2>/dev/null | head -n1 | sed 's/.*://' || true)"
+DASH_PORT="$(dk port "$NAME" 8080/tcp 2>/dev/null | head -n1 | sed 's/.*://' || true)"
+if [[ -z "$SSH_PORT" ]]; then
+    echo "sid: the container has no published ssh port (created by an older version of this script?)" >&2
+    echo "sid: run ./sandbox.sh --reset" >&2
+    exit 1
+fi
+echo "ssh: 127.0.0.1:${SSH_PORT}   dashboard: http://127.0.0.1:${DASH_PORT:-?}"
 
 ssh_opts=(
     -i "$KEY" -p "$SSH_PORT"
@@ -147,6 +163,7 @@ ssh_opts=(
 # The first start builds sid before sshd comes up, so allow time.
 echo "waiting for the sandbox (building sid on first start)..."
 for _ in $(seq 1 180); do
+    running || dead
     ssh -n "${ssh_opts[@]}" -o ConnectTimeout=2 -o BatchMode=yes \
         "$DEV_USER@127.0.0.1" true 2>/dev/null && break
     sleep 1

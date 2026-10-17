@@ -1,0 +1,19 @@
+[Unit]
+Description=sid passive command capture
+After=local-fs.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+TimeoutStartSec=300  # eBPF compile is slow under emulation
+ExecStart=/usr/bin/python3 -m sid.daemon
+Environment=PYTHONPATH=/usr/local/lib/sid
+# The machine is unguarded while this is down (the kernel allows every paused
+# program when the daemon dies), so come back immediately.
+Restart=always
+RestartSec=1
+OOMScoreAdjust=-900
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

@@ -18,7 +18,7 @@ status="$(limactl list --format '{{.Status}}' "$VM" 2>/dev/null || true)"
 case "$status" in
     Running) ;;
     Stopped) limactl start "$VM" ;;
-    *)       limactl start --name="$VM" --tty=false "$ROOT/vm/sid.yaml" ;;
+    *)       limactl start --name="$VM" --tty=false --set ".mounts[0].location=\"$ROOT\"" "$ROOT/vm/sid.yaml" ;;
 esac
 
 limactl shell --workdir / "$VM" sudo bash /workspace/vm/install.sh /workspace

@@ -11,8 +11,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Etc/UTC
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        # build: sid-launch (C, seccomp user notification, file caps)
-        build-essential gcc make pkg-config gdb \
+                build-essential gcc g++ make pkg-config gdb \
+        # sid-daemon (C++/eBPF): built at container start against the host kernel's BTF
+        clang llvm libbpf-dev libelf-dev zlib1g-dev linux-tools-common linux-tools-generic \
         libseccomp-dev seccomp libcap-dev libcap2-bin linux-libc-dev \
         # daemon / explore (Python, overlayfs, netns, strace)
         python3 python3-dev python3-venv python3-pip \
@@ -32,7 +33,7 @@ RUN userdel -r ubuntu 2>/dev/null || true \
     && install -d -m 700 -o "${DEV_USER}" -g "${DEV_USER}" /home/${DEV_USER}/.ssh \
     && install -d -o "${DEV_USER}" -g "${DEV_USER}" /home/${DEV_USER}/.cache
 
-# Python venv for sid-daemon / sid-explore / Laya.
+# Python venv for sid-explore / Laya.
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip wheel \
     && chown -R "${DEV_USER}:${DEV_USER}" /opt/venv

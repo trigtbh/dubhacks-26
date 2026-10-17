@@ -1,0 +1,9 @@
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+PubkeyAuthentication yes
+UsePAM yes
+PrintMotd no
+# Keep SSH_CONNECTION etc. honest; the daemon reads them from /proc/<pid>/environ.
+PermitUserEnvironment no
+ClientAliveInterval 30

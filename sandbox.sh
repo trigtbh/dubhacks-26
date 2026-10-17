@@ -20,7 +20,7 @@
 #                        kernel; emulated x86 cannot do it.
 #   SID_FORCE_VM=1 forces the VM path.
 #
-# Env overrides: SSH_PORT (2222), DASHBOARD_PORT (8080), SANDBOX_MEMORY (8g), SANDBOX_CPUS (4).
+# Env overrides: SSH_PORT (2222), DASHBOARD_PORT (8080; both fall back to free ports if taken), SANDBOX_MEMORY (8g), SANDBOX_CPUS (4).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -99,8 +99,7 @@ fi
 
 (( reset )) && dk rm -f "$NAME" >/dev/null 2>&1 || true
 
-if [[ "$(dk inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != true ]]; then
-    dk rm -f "$NAME" >/dev/null 2>&1 || true
+run_container() {  # $1, $2: host side of the ssh and dashboard port mappings
     # --privileged --pid=host: sid's fanotify and eBPF act on the shared kernel, and
     # eBPF reports host-namespace thread ids, which must match fanotify's.
     dk run -d \
@@ -108,15 +107,36 @@ if [[ "$(dk inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != true ]]; th
         --platform "$PLATFORM" \
         --init --privileged --pid=host \
         --memory "${SANDBOX_MEMORY:-8g}" --cpus "${SANDBOX_CPUS:-4}" --pids-limit 4096 \
-        -p "127.0.0.1:${SSH_PORT}:22" \
-        -p "127.0.0.1:${DASHBOARD_PORT}:8080" \
+        -p "$1:22" \
+        -p "$2:8080" \
         --tmpfs /var/lib/sid/explore:rw,exec,suid,dev,size=2g,mode=0700 \
         -v "$SRC:/workspace" \
         -v "$SRC/.sandbox/authorized_keys:/run/sandbox/authorized_keys:ro" \
         -v sid-sandbox-cache:/home/$DEV_USER/.cache \
-        "$IMAGE" >/dev/null
+        "$IMAGE" 2>&1
+}
+
+if [[ "$(dk inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != true ]]; then
+    dk rm -f "$NAME" >/dev/null 2>&1 || true
+    if ! err="$(run_container "127.0.0.1:${SSH_PORT}" "127.0.0.1:${DASHBOARD_PORT}")"; then
+        if grep -qiE "ports are not available|port is already allocated|address already in use|forbidden by its access" <<<"$err"; then
+            # Windows reserves port ranges (Hyper-V/WSL), and other programs hold ports too.
+            echo "ports ${SSH_PORT}/${DASHBOARD_PORT} are unavailable here; letting Docker pick free ones" >&2
+            dk rm -f "$NAME" >/dev/null 2>&1 || true
+            err="$(run_container "127.0.0.1:" "127.0.0.1:")" || { echo "$err" >&2; exit 1; }
+        else
+            echo "$err" >&2
+            exit 1
+        fi
+    fi
     echo "started $NAME"
 fi
+
+# Read the ports back: they may not be the ones we asked for.
+SSH_PORT="$(dk port "$NAME" 22/tcp | head -n1 | sed 's/.*://')"
+DASH_PORT="$(dk port "$NAME" 8080/tcp | head -n1 | sed 's/.*://')"
+[[ -n "$SSH_PORT" ]] || { echo "could not find the container's ssh port" >&2; exit 1; }
+echo "ssh: 127.0.0.1:${SSH_PORT}   dashboard: http://127.0.0.1:${DASH_PORT}"
 
 ssh_opts=(
     -i "$KEY" -p "$SSH_PORT"

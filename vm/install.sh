@@ -1,12 +1,11 @@
 #!/bin/bash
-# Runs inside the VM as root: copy sid out of the 9p mount and (re)start the service.
+# Runs inside the VM as root: build sid from the 9p mount (into /tmp) and (re)start the service.
 # The unit is Type=notify, so `systemctl restart` returns once the capture is live.
 set -euo pipefail
 SRC="${1:-/workspace}"
-install -d /usr/local/lib/sid /var/log/sid
-rm -rf /usr/local/lib/sid/sid
-cp -r "$SRC/src/sid" /usr/local/lib/sid/sid
-find /usr/local/lib/sid -name __pycache__ -prune -exec rm -rf {} +
+install -d /var/log/sid
+rm -rf /usr/local/lib/sid/sid /usr/local/lib/sid/libsid_decide.so  # old Python daemon
+make -s -C "$SRC" BUILD=/tmp/sid-build PREFIX=/usr/local install
 install -m 644 "$SRC/vm/sid.service" /etc/systemd/system/sid.service
 systemctl daemon-reload
 systemctl enable sid >/dev/null 2>&1

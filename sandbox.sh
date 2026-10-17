@@ -6,6 +6,9 @@
 #   ./sandbox.sh --reset    recreate the container (keeps the image and caches)
 #   ./sandbox.sh --stop     stop and remove the container
 #
+# NOTE: Docker Desktop's kernel has no fanotify permission events, so the capture
+# does not run here. Use ./vm.sh for that.
+#
 # Env overrides: SSH_PORT (2222), DASHBOARD_PORT (8080), SANDBOX_MEMORY (8g),
 # SANDBOX_CPUS (4), SANDBOX_PRIVILEGED=1 (full --privileged, e.g. for BPF work).
 set -euo pipefail

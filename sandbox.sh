@@ -8,14 +8,17 @@
 #   ./sandbox.sh --stop     stop and remove the container
 #   ./sandbox.sh --logs     follow sid's capture log (THIS IS BEING RUN IN THE CAPTURE)
 #
-# Where it runs:
-#   native x86_64 Linux  a Docker container on this machine (shares the host kernel)
-#   anything else        (Apple Silicon, ARM Linux, Intel Mac, ...) no container: the
-#                        x86_64 Linux VM from vm/sid.yaml is the sandbox (see vm.sh).
-#                        The capture needs a real x86 Linux kernel with fanotify
-#                        permission events: Docker Desktop's kernel has none and
-#                        emulated x86 cannot do it either.
-#   SID_FORCE_VM=1 forces the VM path on x86 Linux too.
+# Where it runs is decided by the Docker host, not by the shell you ran this from
+# (Git Bash on Windows reports itself as MINGW, but its Docker host is still Linux):
+#   Docker host is x86_64 Linux, kernel has fanotify permission events
+#                        a Docker container (Linux, WSL2, Docker Desktop on Windows)
+#   anything else        no container: the x86_64 Linux VM from vm/sid.yaml is the
+#                        sandbox (see vm.sh; needs Lima, macOS/Linux only). That
+#                        covers Apple Silicon, ARM Linux, no Docker running, and
+#                        Docker hosts whose kernel can't pause execs (Docker
+#                        Desktop on Mac). The capture needs a real x86 Linux
+#                        kernel; emulated x86 cannot do it.
+#   SID_FORCE_VM=1 forces the VM path.
 #
 # Env overrides: SSH_PORT (2222), DASHBOARD_PORT (8080), SANDBOX_MEMORY (8g), SANDBOX_CPUS (4).
 set -euo pipefail
@@ -30,16 +33,46 @@ DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
 STATE="$ROOT/.sandbox"
 KEY="$STATE/id_ed25519"
 
-if [[ "$(uname -s)" != Linux || "$(uname -m)" != x86_64 || "${SID_FORCE_VM:-0}" == 1 ]]; then
+go_vm() {  # $1: why
+    if ! command -v limactl >/dev/null; then
+        echo "sid: $1" >&2
+        echo "sid: the container path needs Docker running on an x86_64 Linux kernel with fanotify" >&2
+        echo "     permission events; the VM path needs Lima (brew install lima lima-additional-guestagents qemu)." >&2
+        exit 1
+    fi
+    echo "sid: $1; using the VM instead of Docker" >&2
     # --rebuild/--reset have no meaning without a container: vm.sh reinstalls every run.
-    case "${1:-}" in
+    case "${2:-}" in
         --rebuild | --reset) exec "$ROOT/vm.sh" ;;
-        *) exec "$ROOT/vm.sh" "$@" ;;
+        *) exec "$ROOT/vm.sh" "${@:2}" ;;
     esac
-fi
+}
+
+# Git Bash/MSYS rewrites anything that looks like a unix path in arguments
+# (/workspace, /run/...) and hands docker Windows-style host paths.
+export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 
 dk() { docker "$@"; }
 SRC="$ROOT"
+command -v cygpath >/dev/null 2>&1 && SRC="$(cygpath -m "$ROOT")"
+
+if [[ "${SID_FORCE_VM:-0}" == 1 ]]; then
+    go_vm "SID_FORCE_VM is set" "$@"
+elif ! docker info >/dev/null 2>&1; then
+    go_vm "docker is not running" "$@"
+elif [[ "$(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != true ]]; then
+    # (a running sandbox container already passed these checks)
+    read -r host_os host_arch < <(docker info --format '{{.OSType}} {{.Architecture}}')
+    if [[ "$host_os" != linux || "$host_arch" != x86_64 ]]; then
+        go_vm "the Docker host is $host_os/$host_arch, not x86_64 Linux" "$@"
+    fi
+    # Containers share the Docker host's kernel, so ask that kernel what it supports.
+    kcfg="$(docker run --rm alpine sh -c 'zcat /proc/config.gz 2>/dev/null' 2>/dev/null || true)"
+    if [[ -n "$kcfg" ]] && ! grep -q '^CONFIG_FANOTIFY_ACCESS_PERMISSIONS=y' <<<"$kcfg"; then
+        go_vm "this Docker host's kernel has no fanotify permission events" "$@"
+    fi
+    [[ -n "$kcfg" ]] || echo "warning: cannot read the Docker host's kernel config; sid may not start" >&2
+fi
 
 rebuild=0 reset=0
 case "${1:-}" in
@@ -50,11 +83,6 @@ case "${1:-}" in
     "") ;;
     *) sed -n '2,10p' "$0"; exit 1 ;;
 esac
-
-docker info >/dev/null 2>&1 || { echo "docker daemon is not running" >&2; exit 1; }
-if ! { zcat /proc/config.gz 2>/dev/null || cat "/boot/config-$(uname -r)" 2>/dev/null; } | grep -q '^CONFIG_FANOTIFY_ACCESS_PERMISSIONS=y'; then
-    echo "warning: cannot confirm this kernel has CONFIG_FANOTIFY_ACCESS_PERMISSIONS; sid may not start" >&2
-fi
 
 # Dedicated keypair for the sandbox; never reuses the host's ~/.ssh keys.
 mkdir -p "$STATE"

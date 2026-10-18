@@ -47,6 +47,7 @@ struct Event {
 	bool has_score = false;
 	double score = 0;
 	bool explored = false;
+	std::string effects;  // simulation summary JSON, when explored
 	double latency_ms = 0;
 
 	std::string to_json() const;
@@ -59,6 +60,8 @@ struct Decision {
 	std::string decided_by, reason, attack_id;
 	bool has_score = false;
 	double score = 0;
+	bool explored = false;
+	std::string effects;  // simulation summary JSON
 };
 
 inline const char *verdict_name(Verdict v)

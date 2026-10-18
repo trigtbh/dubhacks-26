@@ -15,7 +15,12 @@ export function mountBar(host, { back }) {
   bk.type = 'button';
   bk.addEventListener('click', () => back && back());
 
+  const brand = h('div', 'bx-brand');
+  const mark = h('img', 'bx-mark');
+  mark.src = 'sid-mark.svg';
+  mark.alt = '';
   const word = h('h1', 'wordmark bx-word', 'sid');
+  brand.append(mark, word);
 
   const box = h('label', 'bx-search cr-cut');
   const input = h('input');
@@ -33,7 +38,7 @@ export function mountBar(host, { back }) {
     if (e.key === 'Escape' && input.value) { e.preventDefault(); input.value = ''; setUI({ q: '' }); }
   });
 
-  wrap.append(bk, word, box);
+  wrap.append(bk, brand, box);
   host.replaceChildren(wrap);
   return { destroy: () => host.replaceChildren() };
 }

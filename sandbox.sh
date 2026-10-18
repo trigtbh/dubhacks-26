@@ -48,6 +48,19 @@ else
     fi
 fi
 
+# Use an NVIDIA GPU when the host has one, so Laya runs on CUDA (far faster than
+# CPU). SANDBOX_GPU=1 forces it, =0 disables; unset auto-detects via nvidia-smi.
+# The image is built with a CUDA torch and run with --gpus; both fall back to CPU.
+use_gpu=0
+case "${SANDBOX_GPU:-auto}" in
+    1 | yes | true) use_gpu=1 ;;
+    0 | no | false) use_gpu=0 ;;
+    *) command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1 && use_gpu=1 ;;
+esac
+gpu_flags=()
+sid_device=cpu
+if (( use_gpu )); then gpu_flags=(--gpus all); sid_device=auto; fi
+
 rebuild=0
 case "${1:-}" in
     --build) rebuild=1 ;;
@@ -75,6 +88,8 @@ if (( rebuild )) || ! dk image inspect "$IMAGE" >/dev/null 2>&1; then
     # Match the host UID on Linux so /workspace stays writable; Docker
     # Desktop on macOS maps ownership for us.
     [[ "$(uname -s)" == Linux ]] && build_args+=(--build-arg "DEV_UID=$(id -u)")
+    # A CUDA torch when the host has a GPU (cu128 = CUDA 12.8; runs on CPU too).
+    (( use_gpu )) && build_args+=(--build-arg "TORCH_INDEX=https://download.pytorch.org/whl/cu128")
     dk build --platform "$PLATFORM" ${build_args[@]+"${build_args[@]}"} -t "$IMAGE" "$SRC/sandbox"
 fi
 
@@ -101,8 +116,9 @@ run_container() {  # $1, $2: host side of the ssh and dashboard port mappings
         --name "$NAME" --hostname sid \
         --platform "$PLATFORM" \
         --init --privileged \
+        ${gpu_flags[@]+"${gpu_flags[@]}"} \
         --memory "${SANDBOX_MEMORY:-8g}" --cpus "${SANDBOX_CPUS:-4}" --pids-limit 4096 \
-        -e SID_MODEL_PYTHON=/opt/venv/bin/python -e SID_LAYA_DEVICE=cpu \
+        -e SID_MODEL_PYTHON=/opt/venv/bin/python -e SID_LAYA_DEVICE="$sid_device" \
         "${model_mount[@]}" \
         -p "$1:22" \
         -p "$2:8080" \
@@ -121,6 +137,12 @@ if [[ "$(dk inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != true ]]; th
             echo "ports ${SSH_PORT}/${DASHBOARD_PORT} are unavailable here; letting Docker pick free ones" >&2
             dk rm -f "$NAME" >/dev/null 2>&1 || true
             err="$(run_container "127.0.0.1:" "127.0.0.1:")" || { echo "$err" >&2; exit 1; }
+        elif ((${#gpu_flags[@]})) && grep -qiE "nvidia|gpu|could not select device driver|cdi|capabilities" <<<"$err"; then
+            # Host has a GPU but Docker cannot pass it through (no container toolkit).
+            echo "sid: GPU passthrough unavailable here; starting on CPU (set SANDBOX_GPU=0 to skip this)" >&2
+            gpu_flags=() sid_device=cpu
+            dk rm -f "$NAME" >/dev/null 2>&1 || true
+            err="$(run_container "127.0.0.1:${SSH_PORT}" "127.0.0.1:${DASHBOARD_PORT}")" || { echo "$err" >&2; exit 1; }
         else
             echo "$err" >&2
             exit 1

@@ -34,9 +34,14 @@ RUN userdel -r ubuntu 2>/dev/null || true \
     && install -d -o "${DEV_USER}" -g "${DEV_USER}" /home/${DEV_USER}/.cache
 
 # CPU inference in the portable sandbox; the host worker can use CUDA.
+# Torch wheel index. Default is the small CPU build (portable, runs anywhere);
+# sandbox.sh passes a CUDA index (e.g. .../whl/cu128) when the host has an NVIDIA
+# GPU, so Laya runs on the GPU. A CUDA build still falls back to CPU where no GPU
+# is present. cu128 (CUDA 12.8) needs a reasonably recent driver.
+ARG TORCH_INDEX=https://download.pytorch.org/whl/cpu
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip wheel \
-    && /opt/venv/bin/pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch \
+    && /opt/venv/bin/pip install --no-cache-dir --index-url "${TORCH_INDEX}" torch \
     && /opt/venv/bin/pip install --no-cache-dir laya==0.4.11 \
     && chown -R "${DEV_USER}:${DEV_USER}" /opt/venv
 ENV PATH=/opt/venv/bin:$PATH \

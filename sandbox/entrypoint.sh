@@ -65,4 +65,28 @@ if [[ -f /workspace/Makefile ]]; then
     fi
 fi
 
+# Build and serve the dashboard. It tails the same event log the daemon writes
+# (/var/log/sid/events.jsonl) and POSTs decisions to the same review socket
+# (/run/sid/review.sock) -- both daemon defaults -- so it needs no wiring here.
+# Built from a copy so node_modules and dist never touch the mounted source.
+build_web() {
+    local w=/var/lib/sid/web
+    rm -rf "$w" && cp -r /workspace/frontend "$w" || return 1
+    find "$w" -type f -exec sed -i 's/\r$//' {} + 2>/dev/null || true
+    ln -snf /opt/webdeps/node_modules "$w/node_modules"
+    (cd "$w" && node build.mjs) || return 1
+    gcc -O2 -std=gnu11 -o /usr/local/bin/sid-web "$w/server/sid-web.c" || return 1
+}
+
+if [[ -d /workspace/frontend ]]; then
+    if build_web >/var/log/sid/web-build.log 2>&1; then
+        SID_WEB_ADDR=0.0.0.0 SID_WEB_PORT=8080 SID_WEB_ROOT=/var/lib/sid/web/dist \
+            nohup /usr/local/bin/sid-web >/var/log/sid/web.log 2>&1 &
+        echo "sid: dashboard on :8080"
+    else
+        tail -n 10 /var/log/sid/web-build.log
+        echo "sid: dashboard build failed (see /var/log/sid/web-build.log); capture is unaffected"
+    fi
+fi
+
 exec /usr/sbin/sshd -D -e

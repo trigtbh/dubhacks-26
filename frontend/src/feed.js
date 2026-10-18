@@ -49,16 +49,17 @@ export function mountFeed(host, { store, ui, search, shapes }) {
     command.append(h('span', 'kv-k', 'Command'), cmd);
     const who = h('span', 'tl-who');
     const user = h('span', 'kv-v'), origin = h('span', 'kv-v'), detail = h('span', 'kv-v');
-    const pair = (label, value, cls = '') => {
+    const gUser = shapes.glyph('user-human', 14, 'kv-i'), gOrigin = shapes.glyph('unknown', 14, 'kv-i'), gDetail = shapes.glyph('unknown', 14, 'kv-i');
+    const pair = (glyph, label, value, cls = '') => {
       const box = h('span', 'kv' + (cls ? ' ' + cls : ''));
-      box.append(h('span', 'kv-k', label), value);
+      box.append(glyph, h('span', 'kv-k', label), value);
       return box;
     };
     const detailLabel = h('span', 'kv-k');
     const detailBox = h('span', 'kv kv--wide');
     detailBox.hidden = true;
-    detailBox.append(detailLabel, detail);
-    who.append(pair('User account', user), pair('Origin', origin), detailBox);
+    detailBox.append(gDetail, detailLabel, detail);
+    who.append(pair(gUser, 'User account', user), pair(gOrigin, 'Origin', origin), detailBox);
     const nt = h('span', 'tl-note');
     const mark = probMark(rec.model && rec.model.probabilities);
     const top = h('span', 'tl-top');
@@ -70,7 +71,7 @@ export function mountFeed(host, { store, ui, search, shapes }) {
     model.append(mark.el);
     side.append(time, model);
     el.append(main, side);
-    return { el, chip, timeValue, cmd, user, origin, detail, detailLabel, detailBox, nt, mark, probKey: JSON.stringify(rec.model && rec.model.probabilities || null), v: vOf(rec), key: '', ncls: null, seen: false };
+    return { el, chip, timeValue, cmd, user, origin, detail, detailLabel, detailBox, gOrigin, gDetail, oi: 'unknown', di: 'unknown', nt, mark, probKey: JSON.stringify(rec.model && rec.model.probabilities || null), v: vOf(rec), key: '', ncls: null, seen: false };
   }
 
   // The command with the search matches marked, built from text nodes.
@@ -127,6 +128,8 @@ export function mountFeed(host, { store, ui, search, shapes }) {
     setValue(r, r.detail, origin.detail || 'Not recorded');
     setValue(r, r.detailLabel, origin.detailLabel);
     setVisible(r.detailBox, !!origin.detailLabel);
+    if (r.oi !== origin.icon) { r.oi = origin.icon; shapes.reglyph(r.gOrigin, origin.icon); }
+    if (r.di !== origin.detailIcon) { r.di = origin.detailIcon; shapes.reglyph(r.gDetail, origin.detailIcon); }
     const [t, cls] = note(rec);
     setNote(r, t, cls);
     const probabilityKey = JSON.stringify(rec.model && rec.model.probabilities || null);

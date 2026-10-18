@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" data-name="Layer 1" viewBox="110.82 88.15 320.31 346.99">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #f15a29;
+      }
+
+      .cls-2 {
+        fill: #f89b6c;
+      }
+
+      .cls-3 {
+        fill: #3b3b3c;
+      }
+
+      .cls-4 {
+        fill: #c1481f;
+      }
+    </style>
+  </defs>
+  <polygon class="cls-4" points="191.92 271.73 226.07 88.15 309.06 291.69 191.92 271.73" />
+  <polygon class="cls-1" points="129.41 330.51 110.82 88.43 257.34 267.02 129.41 330.51" />
+  <polygon class="cls-2" points="116.26 340.22 255.56 435.14 431.13 341.71 116.26 340.22" />
+  <polygon class="cls-4" points="150.75 279.11 134.34 162.73 218.98 265.88 150.75 279.11" />
+  <polygon class="cls-1" points="116.26 340.22 178.55 229.83 431.13 341.71 116.26 340.22" />
+  <polygon class="cls-3" points="255.6 285.55 283.78 322.29 318.93 297.56 255.6 285.55" />
+  <polygon class="cls-3" points="408.22 331.56 411.62 352.09 431.13 341.71 408.22 331.56" />
+  <polygon class="cls-3" points="110.82 88.43 114.6 137.66 132.08 114.35 110.82 88.43" />
+  <polyline class="cls-3" points="226.07 88.15 219.44 123.82 240.25 122.92" />
+</svg>

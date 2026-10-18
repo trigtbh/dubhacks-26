@@ -93,10 +93,10 @@ export function mountStage(host, { store, shapes, decide }) {
 
   // ---- a command ---------------------------------------------------------------------------------
 
-  function fact(dl, label, value, cls) {
+  function fact(dl, icon, label, value, cls) {
     const row = h('div', cls || '');
     row.style.setProperty('--fact-n', String(dl.children.length));
-    row.append(h('dt', '', label));
+    row.append(shapes.glyph(icon, 18, 'lv-fi'), h('dt', '', label));
     const dd = h('dd');
     if (value instanceof Node) dd.append(value); else dd.textContent = value;
     row.append(dd);
@@ -173,17 +173,17 @@ export function mountStage(host, { store, shapes, decide }) {
     const accountType = ({ human: 'Human', service: 'Service', root: 'Root' })[u.type] || 'Not recorded';
     const groups = Array.isArray(c.groups) ? c.groups : [];
     const numericGroups = groups.length > 0 && groups.every((g) => /^\d+$/.test(g));
-    fact(dl, 'User account', userName);
-    fact(dl, 'Origin', origin.kind);
-    if (origin.detailLabel) fact(dl, origin.detailLabel, origin.detail || 'Not recorded');
-    fact(dl, 'Working directory', h('span', 'lv-mono', c.cwd || 'Not recorded'));
-    fact(dl, 'Executable path', h('span', 'lv-mono', c.program || 'Not recorded'));
-    fact(dl, 'User ID', u.uid != null ? String(u.uid) : 'Not recorded', 'lv-more');
-    fact(dl, 'Account type', accountType, 'lv-more');
-    fact(dl, numericGroups ? 'Group IDs' : 'Groups', groups.length ? groups.join(', ') : recorded ? 'None recorded' : 'Not recorded', 'lv-more');
-    fact(dl, 'Sudo access', SUDO[c.sudo] && c.sudo !== 'unknown' ? SUDO[c.sudo] : 'Not recorded', 'lv-more');
+    fact(dl, 'user-human', 'User account', userName);
+    fact(dl, origin.icon, 'Origin', origin.kind);
+    if (origin.detailLabel) fact(dl, origin.detailIcon, origin.detailLabel, origin.detail || 'Not recorded');
+    fact(dl, 'folder', 'Working directory', h('span', 'lv-mono', c.cwd || 'Not recorded'));
+    fact(dl, 'exec', 'Executable path', h('span', 'lv-mono', c.program || 'Not recorded'));
+    fact(dl, 'uid', 'User ID', u.uid != null ? String(u.uid) : 'Not recorded', 'lv-more');
+    fact(dl, 'account', 'Account type', accountType, 'lv-more');
+    fact(dl, 'groups', numericGroups ? 'Group IDs' : 'Groups', groups.length ? groups.join(', ') : recorded ? 'None recorded' : 'Not recorded', 'lv-more');
+    fact(dl, 'sudo', 'Sudo access', SUDO[c.sudo] && c.sudo !== 'unknown' ? SUDO[c.sudo] : 'Not recorded', 'lv-more');
     const capValue = capsText(c.caps);
-    fact(dl, 'Linux capabilities', capValue, 'lv-more');
+    fact(dl, 'caps', 'Linux capabilities', capValue, 'lv-more');
     const fl = h('ul', 'lv-fl');
     for (const f of (c.files || []).slice(0, 16)) {
       const li = h('li');
@@ -192,14 +192,14 @@ export function mountStage(host, { store, shapes, decide }) {
       fl.append(li);
     }
     if (c.filesMore) fl.append(h('li', 'lv-file-more', 'Additional paths: ' + c.filesMore + ' more'));
-    fact(dl, 'Files inferred from the command', fl.children.length ? fl : recorded ? 'No file paths inferred' : 'Not available in event fields', 'lv-more lv-wide');
+    fact(dl, 'files', 'Files inferred from the command', fl.children.length ? fl : recorded ? 'No file paths inferred' : 'Not available in event fields', 'lv-more lv-wide');
     const hist = h('ol', 'lv-hist');
     for (const x of (c.history || []).slice(-5)) hist.append(h('li', 'lv-mono', x));
-    fact(dl, 'Recent commands', hist.children.length ? hist : recorded ? 'None recorded' : 'Not available in event fields', 'lv-more lv-wide');
+    fact(dl, 'history', 'Recent commands', hist.children.length ? hist : recorded ? 'None recorded' : 'Not available in event fields', 'lv-more lv-wide');
     const contextSource = c.contextMismatch ? 'Structured event fields; supplied context conflicted'
       : c.contextInvalid ? 'Structured event fields; supplied context could not be read'
       : recorded ? 'Inspected command context' : 'Structured event fields';
-    fact(dl, 'Context source', contextSource, 'lv-more lv-wide');
+    fact(dl, 'source', 'Context source', contextSource, 'lv-more lv-wide');
 
     const context = h('section', 'lv-context');
     context.append(h('h3', 'lv-section-title', 'Execution details'), dl);
@@ -265,7 +265,7 @@ export function mountStage(host, { store, shapes, decide }) {
       sec.append(el.activityTitle, qh, panes);
       el.scroll.append(sec);
 
-      // Allow and Block, or the outcome once it is settled. Part of the panel, not a bar of its own.
+      // Allow and Block, part of the panel, not a bar of its own. Hidden once the command is settled.
       el.act = h('div', 'lv-act');
       el.btns = h('div', 'lv-btns');
       el.allow = h('button', 'lv-btn lv-allow cr-cut', 'Allow');
@@ -279,10 +279,8 @@ export function mountStage(host, { store, shapes, decide }) {
       }
       el.btns.append(el.allow, el.block);
       el.hint = h('p', 'lv-hint');
-      el.banner = h('p', 'lv-banner');
       el.hint.hidden = true;
-      el.banner.hidden = true;
-      el.act.append(el.btns, el.hint, el.banner);
+      el.act.append(el.btns, el.hint);
       el.body.append(el.act);
     }
     // Each section rises in, one after the other.
@@ -450,16 +448,8 @@ export function mountStage(host, { store, shapes, decide }) {
     const key = [st, rec.pending || '', rec.failed, store.canDecide, el.arming, settled].join('|');
     if (key === el.actKey) return;
     el.actKey = key;
-    setVisible(el.btns, !settled);
-    setVisible(el.banner, settled);
-    if (settled) {
-      const a = rec.decision.verdict === 'allow';
-      const outcome = `This command was held, then ${a ? 'allowed' : 'blocked'}.`;
-      changeText(el.banner, outcome);
-      el.banner.setAttribute('aria-label', outcome);
-      setVisible(el.hint, false);
-      return;
-    }
+    setVisible(el.act, !settled);   // once settled the whole block goes; the chip shows the outcome
+    if (settled) return;
     const off = !canReport || !!rec.pending || !store.canDecide || el.arming;
     for (const [b, v, word, busy] of [[el.allow, 'allow', 'Allow', 'Allowing…'], [el.block, 'block', 'Block', 'Blocking…']]) {
       b.setAttribute('aria-disabled', String(off));

@@ -19,13 +19,7 @@
 .sh-lg { width: 28px; height: 28px; }
 .sh-xl { width: 44px; height: 44px; }
 
-/* Status glyphs. One path whose d is set per verdict, so a verdict change morphs it; the path attribute is the
-   fallback where CSS d: is unsupported. The same morph is applied to Crystal's chip glyph. */
-.sh-gs path, .cr-glyph path { transition: d .3s cubic-bezier(.6, 0, .2, 1); }
-.sh-gs--allow path { d: path("M0.53 6.07 L3.23 8.77 L4.57 7.43 L1.87 4.73 Z M4.62 8.71 L9.62 2.81 L8.18 1.59 L3.18 7.49 Z"); }
-.sh-gs--hold path  { d: path("M1.60 1.00 L1.60 9.00 L4.00 9.00 L4.00 1.00 Z M6.00 1.00 L6.00 9.00 L8.40 9.00 L8.40 1.00 Z"); }
-.sh-gs--block path { d: path("M0.89 2.31 L7.69 9.11 L9.11 7.69 L2.31 0.89 Z M7.69 0.89 L0.89 7.69 L2.31 9.11 L9.11 2.31 Z"); }
-.sh-spin { animation: sh-spin 1s steps(6) infinite; }
+/* Status glyphs: a Material icon whose path is swapped per verdict (shapes.js morph pops the new one in). */
 @keyframes sh-spin { to { transform: rotate(360deg); } }
 
 /* Tooltip: an HTML wrapper with data-tip, shown on hover and keyboard focus. */
@@ -81,19 +75,11 @@
 .sh-op { color: var(--ink); }
 .sh-op--create.is-new, .is-new .sh-op--create { animation: sh-pop .3s cubic-bezier(.3, 1.6, .5, 1) both; }
 .sh-op--modify.is-new, .is-new .sh-op--modify { animation: sh-flash .3s linear both; }
-.sh-op--modify path:nth-child(2) { transform-box: view-box; transform-origin: 50% 50%; }
-.sh-op--modify.is-new path:nth-child(2), .is-new .sh-op--modify path:nth-child(2) { animation: sh-tick .3s cubic-bezier(.6, 0, .2, 1) both; }
-.sh-op--delete path:nth-child(2) { transform-box: view-box; transform-origin: 2.5px 13.5px; }
-.sh-op--delete.is-new path:nth-child(2), .is-new .sh-op--delete path:nth-child(2) { animation: sh-strike .25s cubic-bezier(.6, 0, .2, 1) both; }
 .is-new:has(.sh-op--delete) { animation: sh-drop .3s .25s both; }
 .sh-op--move.is-new, .is-new .sh-op--move { animation: sh-slide .3s cubic-bezier(.2, .7, .2, 1) both; }
 .sh-op--chmod.is-new path, .is-new .sh-op--chmod path { animation: sh-blink .3s linear both; }
-.sh-op--chmod path:nth-child(2) { animation-delay: .06s !important; }
-.sh-op--chmod path:nth-child(3) { animation-delay: .12s !important; }
 @keyframes sh-pop { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sh-flash { 0% { opacity: .15; } 35% { opacity: 1; } 55% { opacity: .5; } 100% { opacity: 1; } }
-@keyframes sh-tick { from { opacity: .2; } to { opacity: 1; } }
-@keyframes sh-strike { from { opacity: .2; } to { opacity: 1; } }
 @keyframes sh-drop { from { opacity: 1; } to { opacity: .5; } }
 @keyframes sh-slide { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sh-blink { 0% { opacity: 1; } 30% { opacity: .1; } 60% { opacity: 1; } 100% { opacity: 1; } }
@@ -137,10 +123,9 @@
 .sh-hatch--strong { background-image: repeating-linear-gradient(135deg, var(--line-strong) 0 1px, transparent 1px 8px); }
 
 @media (prefers-reduced-motion: reduce) {
-  .sh-spin, .sh-rot, .sh-pulse, .sh-ring.orbit .sh-w { animation: none; }
+  .sh-rot, .sh-pulse, .sh-ring.orbit .sh-w { animation: none; }
   .sh-op, .sh-op *, .is-new:has(.sh-op--delete) { animation: none !important; }
   .sh-ring.orbit .sh-w:nth-child(-n+6) { opacity: 1; }
-  .sh-gs path, .cr-glyph path { transition: none; }
   .sh-tip::after { transition: none; }
 }
 @media (forced-colors: active) {

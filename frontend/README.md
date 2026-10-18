@@ -86,6 +86,12 @@ forbids inline script and outside connections.
 which is plain HTML, CSS, JavaScript, and the fonts used by the page. The background stays flat;
 elements fade in or out, and no decorative shapes float behind the content.
 
+Icons are Google's Material Design Icons (sharp style, Apache-2.0, never Lucide), taken unmodified from
+`google/material-design-icons` at commit `49d4db3` into `src/icons/` with their license. `build.mjs` reads
+their path data into `src/icons.js` (generated, do not edit) and ships the license as
+`dist/LICENSE-material-icons.txt`. To use another icon, drop its upstream `24px.svg` into `src/icons/`,
+named after the icon, and name it in the tables at the top of `src/shapes.js`.
+
 Everything in an event is text an attacker may have chosen, so it only reaches the page
 through `textContent`.
 

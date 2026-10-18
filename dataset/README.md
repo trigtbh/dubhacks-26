@@ -70,6 +70,13 @@ regressions, not independent model quality. Existing approved exports and gold s
 unchanged. Demo experiment inputs, candidate reports, and checkpoint selection remain
 under `.data/runs/laya-demo-*`.
 
+`finetune.py` includes these 2,880 demo training contexts by default alongside the approved
+release. Its preflight checks rendering, token limits and exact input separation from
+validation, gold and demo regression contexts. The run writes the combined `train.jsonl`
+and records the demo labels and source hashes separately in `report.json`. Use `--no-demo`
+to train on the original release without the demo additions. The 768 demo regression
+contexts remain separate and can be checked with `demo.py check` after training.
+
 An earlier checkpoint is published for testing at
 `.data/runs/laya-demo-test-01/checkpoint/`. Fetch its weights with:
 
@@ -140,8 +147,11 @@ all three classes in each split. Disputes and malformed shell text remain exclud
 # Preflight and Laya's dry run only; no optimizer updates.
 .venv/bin/python -I dataset/finetune.py --out .data/runs/preflight
 
-# New run: same approved pilot, one epoch, with encoder updates.
+# New run: approved pilot plus demo contexts, one epoch, with encoder updates.
 .venv/bin/python -I dataset/finetune.py --out .data/runs/laya-next --train-encoder --run
+
+# Original approved pilot only.
+.venv/bin/python -I dataset/finetune.py --out .data/runs/laya-pilot-only --no-demo --run
 
 # Experimental: append unapproved draft rows to train only. Validation/gold stay approved,
 # and draft rows sharing a family, unit, pair or state with them are rejected.

@@ -2,6 +2,7 @@
 PREFIX ?= /usr/local
 BUILD  ?= build
 CXX    ?= g++
+PYTHON ?= python3
 BPFTOOL ?= bpftool
 CXXFLAGS ?= -O2 -std=c++17 -Wall -Wextra -pthread
 ARCH   := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
@@ -11,7 +12,7 @@ EXPLORE_SRCS := src/explore_main.cpp src/changes.cpp src/overlay_diff.cpp
 TEST_SRCS := tests/test_main.cpp src/changes.cpp src/overlay_diff.cpp src/review.cpp src/unsure.cpp \
              src/jev.cpp src/jev_stub.cpp src/enforce.cpp
 
-.PHONY: all install clean test
+.PHONY: all install clean test test-data check
 all: $(BUILD)/sid-daemon $(BUILD)/sid-explore $(BUILD)/exec_trace.bpf.o
 
 $(BUILD)/sid-explore: $(EXPLORE_SRCS) $(wildcard src/*.hpp)
@@ -43,6 +44,11 @@ $(BUILD)/sid-tests: $(TEST_SRCS) $(wildcard src/*.hpp)
 
 test: $(BUILD)/sid-tests
 	$(BUILD)/sid-tests
+
+test-data:
+	$(PYTHON) -I -B -m unittest discover -s dataset -p 'test_*.py' -v
+
+check: test test-data
 
 # The unsure path end to end without the capture; see tests/demo_unsure.cpp.
 $(BUILD)/sid-demo-unsure: tests/demo_unsure.cpp src/unsure.cpp src/review.cpp src/changes.cpp src/jev.cpp src/enforce.cpp $(wildcard src/*.hpp)

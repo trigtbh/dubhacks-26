@@ -47,6 +47,13 @@ struct Event {
 	bool has_score = false;
 	double score = 0;
 	bool explored = false;
+	std::string effects;  // simulation summary JSON, when explored
+	// The simulated run's result, carried forward so an approved command's output
+	// and exit code can be reused. has_result is false when nothing was simulated.
+	bool has_result = false;
+	int result_exit = -1;
+	bool result_success = false;
+	std::string result_output;
 	double latency_ms = 0;
 
 	std::string to_json() const;
@@ -59,6 +66,13 @@ struct Decision {
 	std::string decided_by, reason, attack_id;
 	bool has_score = false;
 	double score = 0;
+	bool explored = false;
+	std::string effects;  // simulation summary JSON
+	// The simulated run's result, to reuse if the command is approved.
+	bool has_result = false;
+	int result_exit = -1;
+	bool result_success = false;
+	std::string result_output;
 };
 
 inline const char *verdict_name(Verdict v)

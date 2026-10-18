@@ -1,0 +1,15 @@
+{
+  "selected_checkpoint": ".data/pilot-v2/finetune-04/checkpoint",
+  "checkpoint_sha256": "86cb71e1c31d2632658741400a65663b14f8ab9fe1fb42c2720216e80a733433",
+  "selected_at_unix": 1792292525.0529053,
+  "selected_before_gold": true,
+  "basis": "validation only: highest serving accuracy (75.9%) among finetune-01..05, fewest epochs; 3-epoch encoder run no better and worse Brier",
+  "compared_runs": [
+    "finetune-01",
+    "finetune-02",
+    "finetune-03",
+    "finetune-04",
+    "finetune-05"
+  ],
+  "gold_use": "one-time report of this fixed checkpoint and the base model; must not change training, data, thresholds or checkpoint choice"
+}

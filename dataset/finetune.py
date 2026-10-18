@@ -54,7 +54,20 @@ def verify_split(rows, candidates, annotations, split):
             raise ValueError(f"label/annotation inconsistency: {identity}")
 
 
-def preflight(release: Path, pilot: Path, base: Path, max_len: int) -> dict:
+def verify_extra(rows, candidates, held):
+    """Unapproved draft rows: same renderer/question contract, no groups shared with validation/gold."""
+    for row in rows:
+        source = candidates.get(row["id"])
+        if source is None or source["state"] != row["state"] or c.renderer.render(source["event"]) != row["state"]:
+            raise ValueError(f"extra row not in its frozen candidates: {row['id']}")
+        if row.get("questions") != {"verdict": c.renderer.VERDICT_QUESTION} or row["expected"]["verdict"] not in LABELS:
+            raise ValueError(f"extra row question/label differs from serving contract: {row['id']}")
+        for key in GROUP_KEYS:
+            if (key, source[key]) in held:
+                raise ValueError(f"extra row shares {key} with {held[key, source[key]]}: {row['id']}")
+
+
+def preflight(release: Path, pilot: Path, base: Path, max_len: int, extra=(), extra_candidates=()) -> dict:
     candidates = {r["id"]: r for r in map(json.loads, (pilot / "candidates.jsonl").open())}
     annotations = {a["id"]: a for a in map(json.loads, (release / "annotations.jsonl").open())}
     splits = {name: [json.loads(l) for l in (release / f"{name}.jsonl").open()]
@@ -76,6 +89,14 @@ def preflight(release: Path, pilot: Path, base: Path, max_len: int) -> dict:
                 value = candidates[r["id"]][key]
                 if owner.setdefault((key, value), name) != name:
                     raise ValueError(f"split leakage on {key}={value}")
+    if extra:
+        held = {k: v for k, v in owner.items() if v != "train"}
+        sources = {r["id"]: r for path in extra_candidates for r in map(json.loads, path.open())}
+        if len({r["id"] for r in extra} | {r["id"] for r in splits["train"]}) != len(extra) + len(splits["train"]):
+            raise ValueError("extra rows repeat ids")
+        verify_extra(extra, sources, held)
+        counts["extra_train_unapproved"] = dict(collections.Counter(r["expected"]["verdict"] for r in extra))
+        tokens.extend(len(tok.encode(r["state"], add_special_tokens=False)) for r in extra)
     if max(tokens) > max_len:
         raise ValueError("train/validation state exceeds max_len")
     return {"counts": counts, "split_leakage": 0, "gold_ids_in_train_or_validation": 0,
@@ -145,12 +166,19 @@ def main():
     ap.add_argument("--epochs", type=int, default=1)
     ap.add_argument("--train-encoder", action="store_true", help="also update encoder weights (default lr 2.5e-5)")
     ap.add_argument("--run", action="store_true")
+    ap.add_argument("--extra-train", type=Path, action="append", default=[],
+                    help="unapproved draft rows appended to train only (experimental)")
+    ap.add_argument("--extra-candidates", type=Path, action="append", default=[],
+                    help="frozen candidates.jsonl covering every --extra-train row")
     args = ap.parse_args()
     args.release = args.release or args.pilot / "release"
     if args.epochs <= 0 or args.log_every <= 0:
         ap.error("--epochs and --log-every must be positive")
     if args.out.exists() and any(args.out.iterdir()):
         ap.error("output directory is not empty; choose a new --out")
+    if bool(args.extra_train) != bool(args.extra_candidates):
+        ap.error("--extra-train and --extra-candidates go together")
+    extra = [json.loads(l) for path in args.extra_train for l in path.open()]
     from laya.train import TrainConfig, dry_run, finetune, optimizer_updates
     # Natural class distribution, decided before any result: the 6 Block rows are 3 correlated
     # scenarios, so oversampling would mostly memorize them. Per-class results are reported instead.
@@ -162,17 +190,29 @@ def main():
               "labels": "owner-approved release; model-proposed/reviewed, harm facts not human-verified",
               "input_sha256": {str(p.resolve()): sha(p) for p in (
                   args.release / "train.jsonl", args.release / "validation.jsonl", args.release / "annotations.jsonl",
-                  args.release / "readiness.json", args.pilot / "candidates.jsonl", Path(c.renderer.__file__))},
-              "preflight": preflight(args.release, args.pilot, args.base, 1024)}
+                  args.release / "readiness.json", args.pilot / "candidates.jsonl", Path(c.renderer.__file__),
+                  *args.extra_train, *args.extra_candidates)},
+              "preflight": preflight(args.release, args.pilot, args.base, 1024, extra, args.extra_candidates)}
+    train_path = args.release / "train.jsonl"
+    if extra:
+        report["labels"] += "; plus unapproved draft rows (model-proposed, partial review)"
+        args.out.mkdir(parents=True, exist_ok=True)
+        train_path = args.out / "train.jsonl"
+        with train_path.open("w") as f:
+            for line in (args.release / "train.jsonl").open():
+                f.write(line)
+            for row in extra:
+                f.write(json.dumps(row, sort_keys=True) + "\n")
+        report["input_sha256"]["combined_train"] = sha(train_path)
     readiness = json.loads((args.release / "readiness.json").read_text())
     if not readiness.get("training_data_ready") or readiness.get("readiness_issues"):
         raise ValueError("release readiness does not permit training")
     n_train = report["preflight"]["counts"]["train"]
-    n_train = sum(n_train.values())
+    n_train = sum(n_train.values()) + len(extra)
     report["config"] = {k: getattr(config, k) for k in config.__dataclass_fields__}
     report["micro_steps"] = -(-n_train // config.micro_batch) * config.epochs
     report["optimizer_updates"] = optimizer_updates(n_train, config.micro_batch, config.grad_accum, config.epochs)
-    report["dry_run"] = dry_run(str(args.release / "train.jsonl"), str(args.base), config)
+    report["dry_run"] = dry_run(str(train_path), str(args.base), config)
     args.out.mkdir(parents=True, exist_ok=True)
     if args.run:
         report["base_sha256_before"] = {n: sha(args.base / n) for n in ("model.safetensors", "rl_agent_config.json")}
@@ -181,7 +221,7 @@ def main():
         started = time.perf_counter()
         try:
             with contextlib.redirect_stdout(progress):
-                result = finetune(str(args.release / "train.jsonl"), str(args.base), str(args.out / "checkpoint"), config, "cuda")
+                result = finetune(str(train_path), str(args.base), str(args.out / "checkpoint"), config, "cuda")
         except BaseException as e:
             progress.update(status="failed", error=repr(e))
             raise

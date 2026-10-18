@@ -1,0 +1,40 @@
+services:
+  exposed-shell:
+    build:
+      context: ../..
+      dockerfile: demos/exposed-shell/Dockerfile
+    environment:
+      PORT: "4173"
+      SHELL_LAB_CONTAINER: "1"
+      SID_DEMO_ALLOW_SHELL_BOOTSTRAP: "1"
+    ports:
+      - "127.0.0.1:4173:4173"
+      - "[::1]:4173:4173"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,exec,nosuid,nodev,size=128m
+      - /run/sid:rw,nosuid,nodev,mode=0755
+      - /var/log/sid:rw,nosuid,nodev,mode=0755
+      - /var/lib/sid/explore:rw,exec,suid,dev,size=2g,mode=0700
+      - /home/guest:rw,exec,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=0755
+      - /workspace:rw,exec,nosuid,nodev,size=64m,mode=0755
+    cap_drop: [ALL]
+    cap_add: [SYS_ADMIN, SYS_PTRACE, KILL, SETPCAP, SETUID, SETGID]
+    pids_limit: 4096
+    mem_limit: 8g
+    cpus: 4
+    init: true
+    volumes:
+      - type: bind
+        source: ${SID_CHECKPOINT:-../../.data/pilot-v2/finetune-04/checkpoint}
+        target: /opt/sid-checkpoint
+        read_only: true
+        bind:
+          create_host_path: false
+    networks: [story-lab]
+
+networks:
+  story-lab:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"

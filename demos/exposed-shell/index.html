@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171d18">
+  <title>Exposed Shell · SID</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/base.css">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body class="notebook-page">
+  <a class="skip-link" href="#console">Skip to live console</a>
+  <header class="appbar">
+    <a class="app-brand" href="/" aria-label="SID exposed shell"><strong>SID</strong><span>EXPOSED SHELL</span></a>
+    <span class="app-divider" aria-hidden="true"></span>
+    <p class="app-crumb"><span>customer-retention</span><span aria-hidden="true">/</span><strong>analysis.ipynb</strong></p>
+    <span class="app-worker">worker-04</span>
+  </header>
+
+  <div class="app-workspace">
+    <aside class="project-sidebar" aria-label="Project files">
+      <div class="sidebar-project">
+        <span class="sidebar-label">Project</span>
+        <strong>customer-retention</strong>
+      </div>
+      <span class="sidebar-label files-label">Project files</span>
+      <ul class="file-list">
+        <li class="file-item current" aria-current="page"><span class="file-kind">nb</span><span>analysis.ipynb</span></li>
+        <li class="file-item"><span class="file-kind">csv</span><span>retention.csv</span></li>
+        <li class="file-item"><span class="file-kind">py</span><span>model.py</span></li>
+      </ul>
+      <div class="sidebar-runtime"><span>Python 3</span><span>Linux worker</span></div>
+    </aside>
+
+    <main class="notebook">
+      <header class="notebook-head">
+        <div class="notebook-title-group">
+          <p class="notebook-eyebrow">Demo <span>/</span> Customer retention</p>
+          <h1>A notebook with the shell left open.</h1>
+          <p class="notebook-summary">Start in Python, then drop into Bash. Commands run through SID's seccomp session backend.</p>
+        </div>
+        <aside class="exposure-note" aria-label="Demo safety note">
+          <strong>Vulnerable by design</strong>
+          <span>Local demo only</span>
+          <span>Do not enter sensitive data.</span>
+        </aside>
+      </header>
+
+      <div class="notebook-grid">
+        <section class="source-panel" aria-labelledby="source-title">
+          <header class="source-head">
+            <div>
+              <p class="source-kicker">Notebook excerpt</p>
+              <h2 id="source-title">Read the data</h2>
+            </div>
+            <span class="source-language">Python</span>
+          </header>
+          <section class="code-cell" aria-label="Read-only notebook cell">
+            <span class="cell-count">01</span>
+            <pre><code>import csv
+with open("retention.csv", newline="") as file:
+    rows = list(csv.DictReader(file))
+rows[:3]</code></pre>
+          </section>
+          <footer class="source-foot"><span>analysis.ipynb</span><span>Cell 01</span></footer>
+        </section>
+
+        <section class="panel terminal" id="console" tabindex="-1" aria-labelledby="console-title" data-state="starting" aria-busy="true">
+          <header class="panel-head">
+            <div>
+              <span class="panel-kicker" id="console-kicker">Live session · worker-04</span>
+              <h2 class="panel-title" id="console-title">Python console</h2>
+            </div>
+            <span class="state" id="shell-state" data-state="starting" role="status" aria-live="polite" aria-atomic="true">starting</span>
+          </header>
+          <pre class="terminal-out" id="terminal-output" role="log" aria-label="Live console output" aria-live="polite"></pre>
+          <form class="terminal-form" id="command-form">
+            <label class="sr-only" for="command">Command for the live session</label>
+            <input id="command" name="command" aria-describedby="console-hint" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Waiting for the shell" disabled>
+            <button id="send" type="submit" disabled>Run</button>
+          </form>
+          <div class="terminal-meta"><span id="console-hint">Waiting for the Python prompt.</span><button class="reset-button" id="reset" type="button">Restart session</button></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -40,7 +40,7 @@ node_modules: package-lock.json
 	npm ci --no-audit --no-fund
 	@touch $@
 
-dist: node_modules build.mjs $(wildcard src/* design/* design/shader/*)
+dist: node_modules build.mjs $(wildcard src/* src/icons/* design/* design/shader/*)
 	node build.mjs
 	@touch $@
 

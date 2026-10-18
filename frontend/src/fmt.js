@@ -17,6 +17,7 @@ export const mmss = (ms) => {
 export const originParts = (o) => {
   const kinds = { agent: 'Agent', ssh: 'SSH', service: 'Service', local: 'Local' };
   const detailLabels = { agent: 'Agent program', ssh: 'Remote address', service: 'Service unit' };
+  const detailIcons = { agent: 'program', ssh: 'address', service: 'unit' };
   const known = !!o && Object.prototype.hasOwnProperty.call(kinds, o.kind);
   const kind = known ? kinds[o.kind] : 'Not recorded';
   const detail = o && o.detail ? String(o.detail) : '';
@@ -25,7 +26,10 @@ export const originParts = (o) => {
     : o.kind === 'agent'
       ? (/^[a-z0-9._+-]+$/i.test(detail) ? detail : '')
       : o.kind === 'service' ? detail : '';
-  return { kind, detailLabel: known ? detailLabels[o.kind] || '' : '', detail: shown };
+  return {
+    kind, detailLabel: known ? detailLabels[o.kind] || '' : '', detail: shown,
+    icon: known ? o.kind : 'unknown', detailIcon: known ? detailIcons[o.kind] || 'unknown' : 'unknown',   // glyph names
+  };
 };
 
 // The daemon may put a numeric UID in `user` when it cannot resolve a login name.

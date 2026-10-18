@@ -405,6 +405,16 @@ void extend_deadline(std::chrono::milliseconds from_now)
 	t_pending->deadline = std::max(t_pending->deadline, Clock::now() + from_now);
 }
 
+void emit_hold(const Event &ev)
+{
+	Event h = ev;  // a provisional "hold" line; the final decision line (same id) settles it
+	h.verdict = "hold";
+	h.decided_by = "model";
+	if (h.reason.empty())
+		h.reason = "held for review";
+	emit(h);
+}
+
 int main()
 {
 	if (geteuid() != 0) {

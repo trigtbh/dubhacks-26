@@ -208,6 +208,7 @@ Decision handle_unsure(const Event &ev, const JevResult &jev, ReviewQueue &q, co
 	// Submit the review up front (empty report), so a front end sees it and can
 	// watch the file changes build up before the simulation has even finished.
 	Review r;
+	r.id = ev.id;        // review id == event id, so the dashboard and socket share one id
 	r.event_id = ev.id;
 	r.command = command_text(ev);
 	r.user = ev.user;

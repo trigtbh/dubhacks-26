@@ -23,6 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         # general tooling
         ca-certificates curl wget git jq vim nano less tmux \
         netcat-openbsd socat iputils-ping dnsutils tcpdump \
+        # dashboard build (esbuild needs Node; the C server needs only gcc, already above)
+        nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Replace the stock "ubuntu" user so the dev user can own UID 1000.
@@ -41,6 +43,12 @@ RUN python3 -m venv /opt/venv \
     && chown -R "${DEV_USER}:${DEV_USER}" /opt/venv
 ENV PATH=/opt/venv/bin:$PATH \
     HF_HOME=/home/${DEV_USER}/.cache/huggingface
+
+# The dashboard's only build deps (esbuild + the three fonts), baked so the
+# entrypoint can build the page at start with no network. build.mjs needs nothing else.
+RUN mkdir -p /opt/webdeps && cd /opt/webdeps \
+    && npm install --no-save --no-audit --no-fund \
+        esbuild@0.24.0 @fontsource/syne@5.0.19 @fontsource/tasa-explorer@5.2.1 @fontsource/commit-mono@5.2.4
 
 # Scratch space for outcome exploration. sandbox.sh mounts a tmpfs here,
 # since an overlayfs upperdir can't live on Docker's own overlay root.

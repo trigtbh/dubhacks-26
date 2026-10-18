@@ -23,17 +23,10 @@
 
 .tl-who { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); min-width: 0; }
 .kv {
-  --kv-shape: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
   position: relative; min-width: 0; display: grid; gap: 0; align-content: start; white-space: normal;
   padding: 4px 7px 5px 25px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface-raised) 55%, transparent);
 }
-.kv::before {
-  content: ""; position: absolute; left: 7px; top: 7px; width: 11px; height: 11px;
-  clip-path: var(--kv-shape); background: color-mix(in srgb, var(--ci) 54%, var(--line-strong));
-}
-.kv:nth-child(4n + 2) { --kv-shape: polygon(0 0, 78% 0, 100% 22%, 100% 100%, 22% 100%, 0 78%); }
-.kv:nth-child(4n + 3) { --kv-shape: polygon(50% 0, 100% 100%, 0 100%); }
-.kv:nth-child(4n + 4) { --kv-shape: polygon(0 18%, 50% 18%, 50% 0, 100% 50%, 50% 100%, 50% 82%, 0 82%); }
+.kv-i { position: absolute; left: 6px; top: 4px; color: color-mix(in srgb, var(--ci) 54%, var(--line-strong)); }
 .kv[hidden] { display: none; }
 .kv--wide { grid-column: 1 / -1; }
 .kv-k { color: var(--ink-muted); font: 600 11px/15px var(--font-sans); }

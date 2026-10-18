@@ -26,6 +26,19 @@ ReviewQueue &reviews()
 	return q;
 }
 
+// Benign commands the shell itself runs that must never be held, or routine
+// actions hang (clear_console runs on every logout). Matched on the resolved
+// program, so a copy planted elsewhere under the same name is not covered.
+bool always_allow(const Event &ev)
+{
+	static const char *const paths[] = {"/usr/bin/clear_console"};
+	const std::string &prog = !ev.file.empty() ? ev.file : ev.path;
+	for (const char *p : paths)
+		if (prog == p || (prog.empty() && !ev.argv.empty() && ev.argv[0] == p))
+			return true;
+	return false;
+}
+
 }  // namespace
 
 void decide_init()
@@ -39,6 +52,13 @@ void decide_init()
 
 Decision decide(const Event &ev)
 {
+	if (always_allow(ev)) {
+		Decision d;
+		d.verdict = Verdict::Allow;
+		d.decided_by = "allowlist";
+		d.reason = "shell teardown command, always allowed";
+		return d;
+	}
 	JevResult j = read_jev_output(jev_classify(ev));
 	// A certain verdict resolves now, with the same consequence a human review
 	// reaches: allow runs the command, block blocks it and severs the origin.

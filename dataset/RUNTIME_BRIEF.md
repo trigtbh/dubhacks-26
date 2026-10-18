@@ -1,4 +1,4 @@
-# Runtime changes for the decision model (brief for whoever owns src/)
+# Proposed event-capture changes for the decision model
 
 The decision model is trained on rendered Event JSON (see `dataset/MODEL_INPUT.md`). These changes
 make the live Event carry what the model was trained to read. Ordered by value for effort. Each is
@@ -10,13 +10,12 @@ Constraint to keep in mind: `gather()` runs while the exec is paused and must no
 
 ## Command-review integration point
 
-The `command-review` branch already routes model Allow/Block decisions and handles Hold
-with simulation and human review. Its model entry points are `jev_init()` and
-`jev_classify(const Event&)` in `src/jev.hpp`; weak definitions in `src/jev_stub.cpp`
-currently always allow. Laya should replace those definitions while keeping this review
-flow. [MODEL_INPUT.md](MODEL_INPUT.md#command-review-model-hook) specifies rendering,
-initialization, concurrency and the expected output JSON. The selected local checkpoint is
-`.data/pilot-v2/finetune-04/checkpoint/`; it remains disconnected from the daemon.
+The `command-review` branch routes live Laya Allow/Block decisions and handles Hold
+with simulation and human review. `src/jev_laya.cpp` implements `jev_init()` and
+`jev_classify(const Event&)` from `src/jev.hpp`, using a persistent model child.
+[MODEL_INPUT.md](MODEL_INPUT.md#command-review-model-hook) specifies rendering,
+concurrency and output JSON. [Runtime configuration](../runtime/README.md) describes
+checkpoint selection and startup. The capture improvements below remain proposals.
 
 ## 1. Permission fields (small)
 

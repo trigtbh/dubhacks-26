@@ -124,9 +124,9 @@ unverified. A passing release check or model agreement does not establish securi
 
 Only `row["event"]` goes through [render.py](render.py). Provenance never enters the model
 state. [MODEL_INPUT.md](MODEL_INPUT.md) describes the input contract. The C++ decider routes
-model verdicts through the command-review flow, but `src/jev_stub.cpp` still supplies an
-Allow result until Laya is connected. [RUNTIME_BRIEF.md](RUNTIME_BRIEF.md) lists the model
-hook and proposed event-capture changes.
+live Laya verdicts through the command-review flow using `src/jev_laya.cpp` and the
+persistent Python worker. [Runtime configuration](../runtime/README.md) describes startup
+and checkpoint selection; [RUNTIME_BRIEF.md](RUNTIME_BRIEF.md) lists proposed capture changes.
 
 - Broad contexts are hypothetical `bash -c` scenarios. They have no captured script contents,
   file ownership or actual permission evidence beyond the supplied fields. The two default

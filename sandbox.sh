@@ -21,6 +21,7 @@
 #   SID_FORCE_VM=1 forces the VM path.
 #
 # Env overrides: SSH_PORT (2222), DASHBOARD_PORT (8080; both fall back to free ports if taken), SANDBOX_MEMORY (8g), SANDBOX_CPUS (4).
+# SID_LAYA_CHECKPOINT selects a local checkpoint to mount read-only for inference.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -100,6 +101,16 @@ fi
 (( reset )) && dk rm -f "$NAME" >/dev/null 2>&1 || true
 
 run_container() {  # $1, $2: host side of the ssh and dashboard port mappings
+    local checkpoint="${SID_LAYA_CHECKPOINT:-$ROOT/.data/pilot-v2/finetune-04/checkpoint}"
+    local model_mount=()
+    if [[ -d "$checkpoint" ]]; then
+        # The repository's .data is often a symlink outside the workspace mount.
+        checkpoint="$(cd "$checkpoint" && pwd -P)"
+        command -v cygpath >/dev/null 2>&1 && checkpoint="$(cygpath -m "$checkpoint")"
+        model_mount=(-v "$checkpoint:/opt/sid-checkpoint:ro" -e SID_LAYA_CHECKPOINT=/opt/sid-checkpoint)
+    else
+        echo "sid: no checkpoint at $checkpoint; model startup will fail until one is supplied" >&2
+    fi
     # --privileged --pid=host: sid's fanotify and eBPF act on the shared kernel, and
     # eBPF reports host-namespace thread ids, which must match fanotify's.
     dk run -d \
@@ -107,6 +118,8 @@ run_container() {  # $1, $2: host side of the ssh and dashboard port mappings
         --platform "$PLATFORM" \
         --init --privileged --pid=host \
         --memory "${SANDBOX_MEMORY:-8g}" --cpus "${SANDBOX_CPUS:-4}" --pids-limit 4096 \
+        -e SID_MODEL_PYTHON=/opt/venv/bin/python -e SID_LAYA_DEVICE=cpu \
+        "${model_mount[@]}" \
         -p "$1:22" \
         -p "$2:8080" \
         --tmpfs /var/lib/sid/explore:rw,exec,suid,dev,size=2g,mode=0700 \

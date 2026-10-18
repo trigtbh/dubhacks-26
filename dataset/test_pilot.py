@@ -129,6 +129,32 @@ class PilotTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             finetune.verify_split([exported], candidates, {row["id"]: {**annotations[row["id"]], "label": "block"}}, "train")
 
+    def test_training_refuses_incomplete_kept_split(self):
+        row = self.row()
+        second = {**row, "id": "second"}
+        exported = {"id": row["id"], **release.c.renderer.training_row(row["event"], "allow")}
+        candidates = {r["id"]: r for r in (row, second)}
+        annotations = {r["id"]: self.annotation(r) for r in (row, second)}
+        with self.assertRaisesRegex(ValueError, "exactly the kept train"):
+            finetune.verify_split([exported], candidates, annotations, "train")
+        annotations[second["id"]] = {**annotations[second["id"]], "disposition": "reject", "label": None}
+        finetune.verify_split([exported], candidates, annotations, "train")
+
+    def test_evaluation_provenance_requires_matching_human_record(self):
+        row = {**self.row(), "split": "gold", "source": "nl2bash"}
+        annotation = {**self.annotation(row), "status": "human_verified"}
+        score = {"id": row["id"], "state_sha256": row["state_sha256"], "prediction": "allow",
+                 "probabilities": {"allow": 1, "hold": 0, "block": 0}}
+        def provenance(a):
+            return evaluate.summarize([row], [a], {row["id"]: score})["label_provenance"]["gold"]
+        unverified = {"model_proposed_or_reviewed_without_matching_human_record": 1}
+        self.assertEqual(provenance(annotation), unverified)
+        human = {**annotation, "reviewer": "owner"}
+        recorded = {**annotation, "human_review": human}
+        self.assertEqual(provenance(recorded), {"matching_human_review_record": 1})
+        for change in ({"state_sha256": "old"}, {"label": "hold"}, {"reviewer": ""}):
+            self.assertEqual(provenance({**recorded, "human_review": {**human, **change}}), unverified)
+
     def test_training_stdout_is_logged_and_progress_survives_redirect(self):
         with tempfile.TemporaryDirectory() as directory:
             out = Path(directory)

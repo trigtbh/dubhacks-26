@@ -252,6 +252,12 @@ TEST(diff_handbuilt_upper)
 	put(up + "/new", "hello");
 	mknod((up + "/gone_dir").c_str(), S_IFCHR | 0, makedev(0, 0));
 	mknod((up + "/gone_file").c_str(), S_IFCHR | 0, makedev(0, 0));
+	// An overlayfs upper (Docker's own root, so often /tmp) swallows a char-0:0 node
+	// instead of storing it, so a hand-built whiteout cannot exist there. The real
+	// sid-explore upper is a tmpfs, which holds it; point TEST_TMP at one to run this.
+	struct stat wst;
+	if (lstat((up + "/gone_file").c_str(), &wst) != 0 || !S_ISCHR(wst.st_mode))
+		SKIP("filesystem cannot hold overlay whiteouts; set TEST_TMP to a tmpfs");
 
 	auto v = diff_overlay(up, lo, "/");
 	CHECK(find(v, Kind::Added, "/new"));

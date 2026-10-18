@@ -194,6 +194,13 @@ std::vector<Layer> build_root(const std::string &w, const std::string &root)
 			l.work = w + "/w" + tag;
 			mkdirs(l.upper);
 			mkdirs(l.work);
+			// overlayfs takes the merged mount point's owner and mode from the upper dir,
+			// not the lower, so mirror the real directory onto it. Without this every mount's
+			// top appears root:0755 and an unprivileged command is wrongly denied the writes it
+			// could really perform there (e.g. a world-writable /workspace or a sticky /tmp),
+			// which also hides the file changes those writes would have produced.
+			(void)!chown(l.upper.c_str(), st.st_uid, st.st_gid);
+			(void)!chmod(l.upper.c_str(), st.st_mode & 07777);
 			// metacopy=off: copy-ups carry full data, so the upper file is always the whole new content.
 			std::string o = "lowerdir=" + mp + ",upperdir=" + l.upper + ",workdir=" + l.work +
 					",redirect_dir=off,metacopy=off,index=off";

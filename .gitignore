@@ -13,4 +13,9 @@ __pycache__/
 .data/runs/*
 !.data/runs/laya-haiku-01/
 .data/runs/laya-haiku-01/checkpoint/checkpoint_latest/
+!.data/runs/laya-demo-test-01/
+.data/runs/laya-demo-test-01/*
+!.data/runs/laya-demo-test-01/checkpoint/
+!.data/runs/laya-demo-test-01/manifest.json
+!.data/runs/laya-demo-test-01/evaluation.json
 !.data/block-proposals-haiku-v1/

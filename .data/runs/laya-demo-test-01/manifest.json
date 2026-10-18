@@ -1,0 +1,229 @@
+{
+  "status": "experimental_test_candidate",
+  "purpose": "Owner-requested earlier checkpoint for testing while fine-tuning continues",
+  "selected_for_default_inference": false,
+  "source_run": "laya-demo-02",
+  "source_stage": "partial-01",
+  "published_at_utc": "2026-10-18T13:41:12.940091+00:00",
+  "checkpoint_sha256": {
+    "model.safetensors": "c997c35501ed71a2f8ccc282f03f568fe50a3f278bb2b01585e0c9d987e9f897",
+    "rl_agent_config.json": "118224bdd65654a93349a6600f34748b4532fd32cc33fe885c4293700abbfe9f",
+    "questions.json": "cd1b0107d8a274a5181e5fcc7f3baf1ad23ff34479ba48d84f59c61b332755b3",
+    "train_report.json": "41e03513c0c8663fa02624b47891ea8743d1fb3c1d8e997e7ae539bf28316425",
+    "encoder/config.json": "1e52db6da0644c25b1d04bd11005518bc8adbfc69a194ff5bc5f9f2738f0ea5c",
+    "tokenizer/tokenizer.json": "dbba919c6e5e492bc22beb80abb64e6fcc7e8744dc696e8388b8c977767afa4b",
+    "tokenizer/tokenizer_config.json": "b4b344dbc945fa1520e0ec141bd99c92fba7bce44118acb3cd6c0f3fbdb40af0"
+  },
+  "source_training_metadata": {
+    "training_seconds": 829.3349927639993,
+    "result": {
+      "train_items": 4758,
+      "calibration_items": 0,
+      "eval_items": 0,
+      "skipped": {},
+      "epoch_loss": [
+        0.042947945793046054
+      ],
+      "temperature": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "temperature_by_options": {},
+      "n_by_bucket": {},
+      "calibration": {
+        "choice": {
+          "items": 0,
+          "temperature": 1.0,
+          "issues": []
+        },
+        "score": {
+          "items": 0,
+          "temperature": 1.0,
+          "issues": []
+        },
+        "noul": {
+          "items": 0,
+          "temperature": 1.0,
+          "issues": []
+        }
+      },
+      "abstention_thresholds": {},
+      "train_report": {
+        "eval_source": null,
+        "eval_mode": null,
+        "is_held_out": false,
+        "eval_items": 0,
+        "note": "No evaluation performed (0 calibration items and no --eval set was provided).",
+        "before": null,
+        "after": null,
+        "comparison": null,
+        "calibration": {
+          "choice": {
+            "items": 0,
+            "temperature": 1.0,
+            "issues": []
+          },
+          "score": {
+            "items": 0,
+            "temperature": 1.0,
+            "issues": []
+          },
+          "noul": {
+            "items": 0,
+            "temperature": 1.0,
+            "issues": []
+          }
+        },
+        "abstention_thresholds": {},
+        "training": {
+          "epochs": 1,
+          "micro_batch": 4,
+          "grad_accum": 4,
+          "encoder_lr": 3e-06,
+          "head_lr": 5e-05,
+          "min_lr": 1e-06,
+          "weight_decay": 0.01,
+          "grad_clip": 1.0,
+          "loss": "soft-ce",
+          "rl_samples": 4,
+          "sigma_start": 0.4,
+          "sigma_end": 0.1,
+          "w_sph": 0.75,
+          "w_rps": 1.0,
+          "shuffle_options": [
+            "choice"
+          ],
+          "option_layout": null,
+          "freeze_encoder": false,
+          "calib_max": 400,
+          "calib_frac": 0,
+          "calib_seed": 20260922,
+          "seed": 243,
+          "max_len": 1024,
+          "head_max_len": 256,
+          "amp": null,
+          "gradient_checkpointing": null,
+          "log_every": 100,
+          "label_smoothing": 0.0,
+          "text_column": "text",
+          "label_column": "label",
+          "question_id": "label",
+          "instructions": null,
+          "eval_data": null,
+          "target_error": 0.1,
+          "min_abstain_n": 10
+        }
+      },
+      "output_dir": "/home/thatchermoore/dubhacks-26/.data/runs/laya-demo-02/partial-01/checkpoint"
+    }
+  },
+  "training_inputs": {
+    "approved_pilot_unique_rows": 1104,
+    "synthetic_unique_rows": 2880,
+    "weighted_training_rows": 4758,
+    "labels": {
+      "hold": 2196,
+      "allow": 1800,
+      "block": 762
+    },
+    "pilot_non_allow_repetitions": 2,
+    "untrusted_program_repetitions": 3,
+    "starting_checkpoint": "/home/thatchermoore/dubhacks-26/.data/runs/laya-demo-02/candidate-epoch-03",
+    "starting_checkpoint_has_experimental_training": true,
+    "starting_checkpoint_sha256": "ae68335a02fc1f9334826fbfb11c6b0b3cae97fb14a9973fb539a25ed94037cf",
+    "new_labels": "Approved pilot replay and policy-derived synthetic demo examples only",
+    "gold_used": false,
+    "exact_training_evaluation_overlap": 0,
+    "source_sha256": {
+      "/home/thatchermoore/dubhacks-26/.data/runs/laya-demo-02/source/dataset/demo.py": "68db5be5a3db2b92a419082b6fcc243221011763a879cae7c092a748fb606169",
+      "/home/thatchermoore/dubhacks-26/.data/runs/laya-demo-02/source/dataset/render.py": "b6ada42eb1fa6800f349c6a897bf658df5bc28d3094ae2d35c775fdf685e3162",
+      "/home/thatchermoore/dubhacks-26/.data/runs/laya-demo-02/source/dataset/examples/demo-v1.jsonl": "bc9bd1103feb04e81a7e6dcc99299454ec59d5f5e1f35e49345a77467b8fc54a",
+      "/home/thatchermoore/dubhacks-26/.data/runs/laya-demo-02/partial-train.jsonl": "904389cfda0a136e495c51193a87d1bd758fa1916cd63aa5fa204d4a431ef729"
+    }
+  },
+  "evaluation": {
+    "demo": {
+      "passed": 766,
+      "total": 768,
+      "accuracy": 0.9973958333333334,
+      "false_allow_vs_labels": {
+        "count": 2,
+        "not_allow_truth_n": 440,
+        "rate": 0.004545454545454545
+      }
+    },
+    "validation": {
+      "passed": 140,
+      "total": 174,
+      "accuracy": 0.8045977011494253,
+      "false_allow_vs_labels": {
+        "count": 6,
+        "not_allow_truth_n": 73,
+        "rate": 0.0821917808219178
+      }
+    },
+    "validation_without_demo_families": {
+      "passed": 138,
+      "total": 172,
+      "accuracy": 0.8023255813953488,
+      "false_allow_vs_labels": {
+        "count": 6,
+        "not_allow_truth_n": 73,
+        "rate": 0.0821917808219178
+      }
+    },
+    "previous_block_regressions": {
+      "passed": 22,
+      "total": 40,
+      "accuracy": 0.55,
+      "false_allow_vs_labels": {
+        "count": 2,
+        "not_allow_truth_n": 39,
+        "rate": 0.05128205128205128
+      }
+    }
+  },
+  "baseline": {
+    "validation_without_demo_families": {
+      "passed": 144,
+      "total": 172,
+      "accuracy": 0.8372093023255814,
+      "false_allow_vs_labels": {
+        "count": 4,
+        "not_allow_truth_n": 73,
+        "rate": 0.0547945205479452
+      }
+    },
+    "previous_block_regressions": {
+      "passed": 18,
+      "total": 40,
+      "accuracy": 0.45,
+      "false_allow_vs_labels": {
+        "count": 1,
+        "not_allow_truth_n": 39,
+        "rate": 0.02564102564102564
+      }
+    }
+  },
+  "regression_repeats": 2,
+  "known_limitations": [
+    "766/768 targeted demo contexts pass; both failures allow /tmp/bash -c whoami in a dev context after vim notes.txt, whoami, clear",
+    "Control incorrect Allow is 6 versus original-model 4; control accuracy is 138/172 versus 144/172",
+    "Prior Block regression incorrect Allow is 2 versus original-model 1",
+    "All reported command groups and known help cases pass these synthetic contexts; unseen commands are not certified",
+    "Starting checkpoint inherits earlier experimental training, including unapproved model proposals",
+    "Validation and regression controls have been used for development; this is not an independent model-quality benchmark"
+  ],
+  "gold_split_used": false,
+  "original_checkpoint_sha256": {
+    "model.safetensors": "eb4e07261ae096965f0a6fbd1e5a07e4ef2e5bc96c51f12aeb3196d956741ecf",
+    "rl_agent_config.json": "882614001167044a95d47b6996bf34adf002420f4a3facc602ee2b6300f8afb5",
+    "questions.json": "430d0cbabcf4b8d432835430259384fdc45f95682fc402f58a64dbb0a3926143",
+    "train_report.json": "3691417e14f76c29de13544d8b5220b4e277ab3e5bb77051c6fbf2c00253edce",
+    "encoder/config.json": "fad4076bcae03044a509e35a2d36c1cdff482fd4c2d6e7c5d187bbc7d8b91590",
+    "tokenizer/tokenizer.json": "dbba919c6e5e492bc22beb80abb64e6fcc7e8744dc696e8388b8c977767afa4b",
+    "tokenizer/tokenizer_config.json": "e8e6a37c189f9dd23976b86b3e1ddb6928472e9f87c94103a1aaff311f45f090"
+  },
+  "source_evaluation_sha256": "f7571ed808635f0749319af07c908897fffd90d0d23c8f933b9db985a6fb1553"
+}

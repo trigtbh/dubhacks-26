@@ -42,7 +42,9 @@ build_web() {
     local w=/var/lib/sid/web
     rm -rf "$w" && cp -r /workspace/frontend "$w" || return 1
     find "$w" -type f -exec sed -i 's/\r$//' {} + 2>/dev/null || true
-    ln -snf /opt/webdeps/node_modules "$w/node_modules"
+    # A real node_modules directory, not a symlink: Node 18's ESM resolver throws
+    # ERR_INTERNAL_ASSERTION resolving packages through a symlinked node_modules.
+    rm -rf "$w/node_modules" && cp -r /opt/webdeps/node_modules "$w/node_modules" || return 1
     (cd "$w" && node build.mjs) || return 1
     gcc -O2 -std=gnu11 -o /usr/local/bin/sid-web "$w/server/sid-web.c" || return 1
 }

@@ -14,9 +14,9 @@ node sim/sim.mjs --scenario probabilities --clean --serve  # fixed model probabi
 
 Or run the server yourself with `SID_EVENT_LOG=sim/.run/events.jsonl SID_DECISION_LOG=sim/.run/decisions.jsonl`.
 
-The probability scenario sends four commands with explicit, valid model probability distributions: a high-confidence
-block, a closer block, and rule overrides where the model preferred Hold or Allow. These values are sample data for
-the interface and are not produced by the real daemon. The showcase begins with these same samples.
+The probability scenario sends twelve commands with explicit, valid model probability distributions. It includes a
+95% Block example, mixed confidence levels, and rule overrides where the model preferred Hold or Allow. These values
+are sample data for the interface and are not produced by the real daemon. The showcase begins with these same samples.
 
 The showcase sends four blocks, then a hold (`npm install`) that waits for you: watch its quarantine run, then
 click Allow or Block when the report appears. A second hold (a "helpful" installer that touches `.ssh`, cron and

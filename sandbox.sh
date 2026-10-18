@@ -1,24 +1,14 @@
 #!/usr/bin/env bash
-# Build and start the sid sandbox container (x86_64 Ubuntu 24.04, with the sid
-# capture running inside), then ssh into it.
+# Build and start the sid sandbox container (Ubuntu 24.04 on the Docker host's
+# architecture, with the sid capture running inside), then ssh into it.
 #
 #   ./sandbox.sh            start (or reuse) the container and open a shell
-#   ./sandbox.sh --rebuild  rebuild the image and recreate the container
-#   ./sandbox.sh --reset    recreate the container (keeps the image and caches)
+#   ./sandbox.sh --build    rebuild the image and recreate the container
 #   ./sandbox.sh --stop     stop and remove the container
 #   ./sandbox.sh --logs     follow sid's capture log (THIS IS BEING RUN IN THE CAPTURE)
 #
-# Where it runs is decided by the Docker host, not by the shell you ran this from
-# (Git Bash on Windows reports itself as MINGW, but its Docker host is still Linux):
-#   Docker host is x86_64 Linux, kernel has fanotify permission events
-#                        a Docker container (Linux, WSL2, Docker Desktop on Windows)
-#   anything else        no container: the x86_64 Linux VM from vm/sid.yaml is the
-#                        sandbox (see vm.sh; needs Lima, macOS/Linux only). That
-#                        covers Apple Silicon, ARM Linux, no Docker running, and
-#                        Docker hosts whose kernel can't pause execs (Docker
-#                        Desktop on Mac). The capture needs a real x86 Linux
-#                        kernel; emulated x86 cannot do it.
-#   SID_FORCE_VM=1 forces the VM path.
+# Docker-only. Images and containers use the Docker host's native x86_64 or
+# arm64 architecture. SSH session commands are gated by seccomp notifications.
 #
 # Env overrides: SSH_PORT (2222), DASHBOARD_PORT (8080; both fall back to free ports if taken), SANDBOX_MEMORY (8g), SANDBOX_CPUS (4).
 # SID_LAYA_CHECKPOINT selects a local checkpoint to mount read-only for inference.
@@ -27,27 +17,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE="sid-sandbox:latest"
 NAME="sid-sandbox"
-PLATFORM="linux/amd64"
+PLATFORM=""
 DEV_USER="dev"
 SSH_PORT="${SSH_PORT:-2222}"
 DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
 STATE="$ROOT/.sandbox"
 KEY="$STATE/id_ed25519"
 
-go_vm() {  # $1: why
-    if ! command -v limactl >/dev/null; then
-        echo "sid: $1" >&2
-        echo "sid: the container path needs Docker running on an x86_64 Linux kernel with fanotify" >&2
-        echo "     permission events; the VM path needs Lima (brew install lima lima-additional-guestagents qemu)." >&2
-        exit 1
-    fi
-    echo "sid: $1; using the VM instead of Docker" >&2
-    # --rebuild/--reset have no meaning without a container: vm.sh reinstalls every run.
-    case "${2:-}" in
-        --rebuild | --reset) exec "$ROOT/vm.sh" ;;
-        *) exec "$ROOT/vm.sh" "${@:2}" ;;
-    esac
-}
+fail() { echo "sid: $*" >&2; exit 1; }
 
 # Git Bash/MSYS rewrites anything that looks like a unix path in arguments
 # (/workspace, /run/...) and hands docker Windows-style host paths.
@@ -57,33 +34,36 @@ dk() { docker "$@"; }
 SRC="$ROOT"
 command -v cygpath >/dev/null 2>&1 && SRC="$(cygpath -m "$ROOT")"
 
-if [[ "${SID_FORCE_VM:-0}" == 1 ]]; then
-    go_vm "SID_FORCE_VM is set" "$@"
-elif ! docker info >/dev/null 2>&1; then
-    go_vm "docker is not running" "$@"
-elif [[ "$(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != true ]]; then
-    # (a running sandbox container already passed these checks)
+if ! docker info >/dev/null 2>&1; then
+    fail "Docker is not running; start Docker and try again"
+else
     read -r host_os host_arch < <(docker info --format '{{.OSType}} {{.Architecture}}')
-    if [[ "$host_os" != linux || "$host_arch" != x86_64 ]]; then
-        go_vm "the Docker host is $host_os/$host_arch, not x86_64 Linux" "$@"
+    case "$host_arch" in
+        x86_64 | amd64) PLATFORM="linux/amd64" ;;
+        aarch64 | arm64) PLATFORM="linux/arm64" ;;
+        *) fail "the Docker host architecture $host_arch is not supported (use x86_64 or arm64 Linux)" ;;
+    esac
+    if [[ "$host_os" != linux ]]; then
+        fail "Docker must target a Linux host; the current Docker host reports $host_os"
     fi
-    # Containers share the Docker host's kernel, so ask that kernel what it supports.
-    kcfg="$(docker run --rm alpine sh -c 'zcat /proc/config.gz 2>/dev/null' 2>/dev/null || true)"
-    if [[ -n "$kcfg" ]] && ! grep -q '^CONFIG_FANOTIFY_ACCESS_PERMISSIONS=y' <<<"$kcfg"; then
-        go_vm "this Docker host's kernel has no fanotify permission events" "$@"
-    fi
-    [[ -n "$kcfg" ]] || echo "warning: cannot read the Docker host's kernel config; sid may not start" >&2
 fi
 
-rebuild=0 reset=0
+rebuild=0
 case "${1:-}" in
-    --rebuild) rebuild=1 reset=1 ;;
-    --reset) reset=1 ;;
+    --build) rebuild=1 ;;
     --stop) dk rm -f "$NAME" >/dev/null 2>&1 || true; echo "stopped $NAME"; exit 0 ;;
     --logs) dk exec "$NAME" tail -n 50 -F /var/log/sid/daemon.log; exit 0 ;;
     "") ;;
     *) sed -n '2,10p' "$0"; exit 1 ;;
 esac
+
+# Build the static page from the current source. The container does not need Node;
+# it serves frontend/dist directly. A prebuilt dist also works on hosts without Node.
+if command -v node >/dev/null 2>&1; then
+    make -C "$ROOT/frontend" dist || fail "dashboard page build failed"
+elif [[ ! -f "$ROOT/frontend/dist/index.html" ]]; then
+    fail "dashboard assets are missing; install Node.js and run 'make -C frontend dist'"
+fi
 
 # Dedicated keypair for the sandbox; never reuses the host's ~/.ssh keys.
 mkdir -p "$STATE"
@@ -98,7 +78,7 @@ if (( rebuild )) || ! dk image inspect "$IMAGE" >/dev/null 2>&1; then
     dk build --platform "$PLATFORM" ${build_args[@]+"${build_args[@]}"} -t "$IMAGE" "$SRC/sandbox"
 fi
 
-(( reset )) && dk rm -f "$NAME" >/dev/null 2>&1 || true
+(( rebuild )) && dk rm -f "$NAME" >/dev/null 2>&1 || true
 
 run_container() {  # $1, $2: host side of the ssh and dashboard port mappings
     local checkpoint="${SID_LAYA_CHECKPOINT:-$ROOT/.data/pilot-v2/finetune-04/checkpoint}"
@@ -106,17 +86,21 @@ run_container() {  # $1, $2: host side of the ssh and dashboard port mappings
     if [[ -d "$checkpoint" ]]; then
         # The repository's .data is often a symlink outside the workspace mount.
         checkpoint="$(cd "$checkpoint" && pwd -P)"
+        if [[ -f "$checkpoint/model.safetensors" ]] &&
+            head -c 100 "$checkpoint/model.safetensors" | grep -aFxq 'version https://git-lfs.github.com/spec/v1'; then
+            echo "sid: checkpoint weights are a Git LFS pointer; the dashboard will still start, but capture needs 'git lfs pull --include=.data/pilot-v2/finetune-04/checkpoint/model.safetensors'" >&2
+        fi
         command -v cygpath >/dev/null 2>&1 && checkpoint="$(cygpath -m "$checkpoint")"
         model_mount=(-v "$checkpoint:/opt/sid-checkpoint:ro" -e SID_LAYA_CHECKPOINT=/opt/sid-checkpoint)
     else
         echo "sid: no checkpoint at $checkpoint; model startup will fail until one is supplied" >&2
     fi
-    # --privileged --pid=host: sid's fanotify and eBPF act on the shared kernel, and
-    # eBPF reports host-namespace thread ids, which must match fanotify's.
+    # --privileged keeps the development sandbox's nested system tooling usable.
+    # sid-session traces only commands launched by SSH sessions in this container.
     dk run -d \
         --name "$NAME" --hostname sid \
         --platform "$PLATFORM" \
-        --init --privileged --pid=host \
+        --init --privileged \
         --memory "${SANDBOX_MEMORY:-8g}" --cpus "${SANDBOX_CPUS:-4}" --pids-limit 4096 \
         -e SID_MODEL_PYTHON=/opt/venv/bin/python -e SID_LAYA_DEVICE=cpu \
         "${model_mount[@]}" \
@@ -148,7 +132,7 @@ fi
 dead() {
     echo "sid: the sandbox container is not running. Its output:" >&2
     dk logs --tail 40 "$NAME" >&2 || true
-    echo "sid: (try ./sandbox.sh --reset; if the build is the problem, --rebuild)" >&2
+    echo "sid: try ./sandbox.sh --build to rebuild the image and recreate the sandbox" >&2
     exit 1
 }
 running() { [[ "$(dk inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" == true ]]; }
@@ -162,10 +146,32 @@ SSH_PORT="$(dk port "$NAME" 22/tcp 2>/dev/null | head -n1 | sed 's/.*://' || tru
 DASH_PORT="$(dk port "$NAME" 8080/tcp 2>/dev/null | head -n1 | sed 's/.*://' || true)"
 if [[ -z "$SSH_PORT" ]]; then
     echo "sid: the container has no published ssh port (created by an older version of this script?)" >&2
-    echo "sid: run ./sandbox.sh --reset" >&2
+    echo "sid: run ./sandbox.sh --build to rebuild the image and recreate the sandbox" >&2
     exit 1
 fi
-echo "ssh: 127.0.0.1:${SSH_PORT}   dashboard: http://127.0.0.1:${DASH_PORT:-?}"
+echo "ssh: 127.0.0.1:${SSH_PORT}"
+
+# The dashboard starts before capture/model initialization and is available while
+# the sandbox finishes building sid on first start.
+dashboard_ready=0
+for _ in $(seq 1 30); do
+    running || dead
+    if dk exec "$NAME" curl -fsS -o /dev/null http://127.0.0.1:8080/ 2>/dev/null; then
+        dashboard_ready=1
+        break
+    fi
+    sleep 0.2
+done
+if (( dashboard_ready )); then
+    echo "dashboard: http://127.0.0.1:${DASH_PORT:-?}"
+else
+    echo "dashboard: unavailable"
+    if [[ ! -f "$ROOT/frontend/dist/index.html" ]]; then
+        echo "sid: build the page on the host with 'make -C frontend dist' (Node and dependencies required)"
+    else
+        dk exec "$NAME" sh -c 'tail -n 30 /var/log/sid/web.log 2>/dev/null || true' >&2 || true
+    fi
+fi
 
 ssh_opts=(
     -i "$KEY" -p "$SSH_PORT"
@@ -175,11 +181,28 @@ ssh_opts=(
 
 # The first start builds sid before sshd comes up, so allow time.
 echo "waiting for the sandbox (building sid on first start)..."
+ssh_ready=0
 for _ in $(seq 1 180); do
     running || dead
-    ssh -n "${ssh_opts[@]}" -o ConnectTimeout=2 -o BatchMode=yes \
-        "$DEV_USER@127.0.0.1" true 2>/dev/null && break
+    if ssh -n "${ssh_opts[@]}" -o ConnectTimeout=2 -o BatchMode=yes \
+        "$DEV_USER@127.0.0.1" true 2>/dev/null; then
+        ssh_ready=1
+        break
+    fi
+    if dk exec "$NAME" test -f /run/sid/startup-failed 2>/dev/null; then
+        echo "sid: capture startup failed; dashboard remains available at http://127.0.0.1:${DASH_PORT:-?}" >&2
+        echo "sid: inspect logs with 'docker logs sid-sandbox' and 'docker exec sid-sandbox tail -n 50 /var/log/sid/daemon.log'" >&2
+        exit 1
+    fi
     sleep 1
 done
+if (( ! ssh_ready )); then
+    if (( dashboard_ready )); then
+        echo "sid: dashboard is running, but SSH did not become ready; inspect 'docker logs sid-sandbox'" >&2
+    else
+        echo "sid: SSH did not become ready; inspect 'docker logs sid-sandbox'" >&2
+    fi
+    exit 1
+fi
 
-exec ssh "${ssh_opts[@]}" -t "$DEV_USER@127.0.0.1" "cd /workspace && exec bash -l"
+exec ssh "${ssh_opts[@]}" -t "$DEV_USER@127.0.0.1"

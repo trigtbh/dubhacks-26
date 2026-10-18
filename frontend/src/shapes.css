@@ -52,7 +52,7 @@
 .sh-dot {
   fill: var(--ink); stroke: var(--ground); stroke-width: 1.2; paint-order: stroke;
   transform: translate(calc(var(--x) * 1px), calc(var(--y) * 1px));
-  transition: transform .3s cubic-bezier(.6, 0, .2, 1);
+  transition: none;
 }
 .sh-dot.sh-hide { opacity: 0; }
 

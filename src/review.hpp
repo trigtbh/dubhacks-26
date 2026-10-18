@@ -11,7 +11,7 @@
 //   FULL <id>            one review's full report (every change, files read/executed)
 //   APPROVE <id> [who]   let the command run for real
 //   DENY <id> [who]      block it; the simulation left the real filesystem untouched
-//   WATCH                stream {"event":"new"|"resolved",...} lines as they happen
+//   WATCH                stream new, progress, updated, resolved, and timed_out events
 #pragma once
 #include <chrono>
 #include <condition_variable>

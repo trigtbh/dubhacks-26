@@ -294,8 +294,8 @@ void gather(Event &ev, uint32_t tid, int efd, const char *role, const exec_rec *
 	for (auto &p : ev.parent_chain)
 		if (p.exe.size() >= 5 && p.exe.compare(p.exe.size() - 5, 5, "/sshd") == 0) {
 			ev.via_ssh = true;
-			ev.origin_type = "ssh";  // TODO: sshd's "Accepted publickey ... from IP ... SHA256:..." line
-			ev.origin_detail = "sshd_pid=" + std::to_string(p.pid);
+			ev.origin_type = "ssh";
+			ev.origin_detail.clear();  // The SSH connection address is not available from this process context.
 			break;
 		}
 	std::string cg = slurp("/proc/" + std::to_string(ev.pid) + "/cgroup");

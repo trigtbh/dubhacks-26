@@ -7,12 +7,12 @@ BPFTOOL ?= bpftool
 CXXFLAGS ?= -O2 -std=c++17 -Wall -Wextra -pthread
 ARCH   := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
 SRCS   := src/main.cpp src/context.cpp src/event.cpp src/fan.cpp src/decide.cpp \
-          src/jev.cpp src/jev_stub.cpp src/unsure.cpp src/review.cpp src/changes.cpp src/enforce.cpp
+          src/jev.cpp src/jev_laya.cpp src/unsure.cpp src/review.cpp src/changes.cpp src/enforce.cpp
 EXPLORE_SRCS := src/explore_main.cpp src/changes.cpp src/overlay_diff.cpp
 TEST_SRCS := tests/test_main.cpp src/changes.cpp src/overlay_diff.cpp src/review.cpp src/unsure.cpp \
-             src/jev.cpp src/jev_stub.cpp src/enforce.cpp
+             src/jev.cpp src/enforce.cpp
 
-.PHONY: all install clean test test-data check
+.PHONY: all install clean test test-data test-model check
 all: $(BUILD)/sid-daemon $(BUILD)/sid-explore $(BUILD)/exec_trace.bpf.o
 
 $(BUILD)/sid-explore: $(EXPLORE_SRCS) $(wildcard src/*.hpp)
@@ -31,10 +31,12 @@ $(BUILD)/sid-daemon: $(SRCS) $(wildcard src/*.hpp src/*.h)
 	$(CXX) $(CXXFLAGS) -Isrc -o $@ $(SRCS) -lbpf -lelf -lz
 
 install: all
-	install -d $(PREFIX)/bin $(PREFIX)/lib/sid
+	install -d $(PREFIX)/bin $(PREFIX)/lib/sid/runtime $(PREFIX)/lib/sid/dataset
 	install -m 755 $(BUILD)/sid-daemon $(PREFIX)/bin/sid-daemon
 	install -m 755 $(BUILD)/sid-explore $(PREFIX)/bin/sid-explore
 	install -m 644 $(BUILD)/exec_trace.bpf.o $(PREFIX)/lib/sid/exec_trace.bpf.o
+	install -m 644 runtime/laya_worker.py $(PREFIX)/lib/sid/runtime/laya_worker.py
+	install -m 644 dataset/render.py $(PREFIX)/lib/sid/dataset/render.py
 
 # Unit tests. The overlay and whiteout cases need root (they skip otherwise);
 # TEST_TMP should be a tmpfs so trusted.overlay xattrs work.
@@ -48,7 +50,14 @@ test: $(BUILD)/sid-tests
 test-data:
 	$(PYTHON) -I -B -m unittest discover -s dataset -p 'test_*.py' -v
 
-check: test test-data
+$(BUILD)/sid-model-check: tests/model_check.cpp src/jev_laya.cpp src/jev.cpp src/event.cpp src/changes.cpp $(wildcard src/*.hpp)
+	mkdir -p $(BUILD)
+	$(CXX) $(CXXFLAGS) -Isrc -o $@ tests/model_check.cpp src/jev_laya.cpp src/jev.cpp src/event.cpp src/changes.cpp
+
+test-model: $(BUILD)/sid-model-check
+	SID_MODEL_CHECK=$(abspath $(BUILD)/sid-model-check) $(PYTHON) -I -B -m unittest discover -s tests -p 'test_*.py' -v
+
+check: test test-data test-model
 
 # The unsure path end to end without the capture; see tests/demo_unsure.cpp.
 $(BUILD)/sid-demo-unsure: tests/demo_unsure.cpp src/unsure.cpp src/review.cpp src/changes.cpp src/jev.cpp src/enforce.cpp $(wildcard src/*.hpp)

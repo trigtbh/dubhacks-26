@@ -35,6 +35,10 @@ def verify_split(rows, candidates, annotations, split):
         raise ValueError(f"release requires nonempty {split} inputs")
     if len({row["id"] for row in rows}) != len(rows):
         raise ValueError(f"duplicate ids in {split}")
+    expected_ids = {identity for identity, candidate in candidates.items()
+                    if candidate["split"] == split and annotations.get(identity, {}).get("disposition") == "keep"}
+    if {row["id"] for row in rows} != expected_ids:
+        raise ValueError(f"export does not cover exactly the kept {split} candidates")
     for row in rows:
         identity = row["id"]
         source, annotation = candidates.get(identity), annotations.get(identity)

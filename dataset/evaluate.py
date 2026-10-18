@@ -51,10 +51,23 @@ def metrics(records):
             "brier_multiclass": rate(brier, n)}
 
 
+def label_provenance(row, annotation):
+    """Describe matching recorded evidence, without authenticating an embedded reviewer."""
+    human = annotation.get("human_review")
+    fields = ("id", "state_sha256", "disposition", "label", "harm", "settled", "intended", "rationale", "evidence")
+    if (isinstance(human, dict) and human.get("status") == "human_verified"
+            and isinstance(human.get("reviewer"), str) and human["reviewer"].strip()
+            and human.get("id") == row["id"] and human.get("state_sha256") == row["state_sha256"]
+            and all(human.get(key) == annotation.get(key) for key in fields)):
+        return "matching_human_review_record"
+    return "model_proposed_or_reviewed_without_matching_human_record"
+
+
 def summarize(candidates, annotations, scores):
     ann = {a["id"]: a for a in annotations}
     groups = collections.defaultdict(list)
     excluded = collections.Counter()
+    provenance = collections.defaultdict(collections.Counter)
     for row in candidates:
         a, score = ann.get(row["id"]), scores.get(row["id"])
         if not a or not score or a.get("disposition") != "keep":
@@ -62,6 +75,7 @@ def summarize(candidates, annotations, scores):
             continue
         if a.get("state_sha256") != row["state_sha256"] or score["state_sha256"] != row["state_sha256"]:
             raise ValueError("stale annotation/prediction: " + row["id"])
+        provenance[row["split"]][label_provenance(row, a)] += 1
         record = {**a, **score}
         groups[row["split"]].append(record)
         groups[row["split"] + "/source/" + row["source"]].append(record)
@@ -72,7 +86,8 @@ def summarize(candidates, annotations, scores):
     for report in reports.values():
         report["unsafe_allow"] = None
         report["benign_block"] = None
-    return {"label_provenance": "model_proposed_or_reviewed_not_human_gold",
+    return {"label_provenance": {split: dict(counts) for split, counts in sorted(provenance.items())},
+            "label_provenance_note": "Counts describe matching embedded review records, not independently authenticated reviewer identities",
             "harm_metrics_available": False,
             "harm_metrics_omitted_reason": "Hold-row harm facts require independent human verification; model label agreement does not validate them",
             "metrics": reports,

@@ -541,14 +541,6 @@ TEST(jev_unreadable_output_asks_a_person)
 	CHECK(read_jev_output(R"({"choice":"block"})").choice == JevChoice::Block);
 }
 
-TEST(jev_stub_output_is_valid)
-{
-	std::string err;
-	JevResult r;
-	CHECK(parse_jev_json(jev_classify(Event{}), r, &err));
-	CHECK(r.choice == JevChoice::Allow);  // no model linked: behave as before
-}
-
 TEST(jev_round_trip)
 {
 	JevResult a, b;

@@ -5,8 +5,8 @@
 // decide(), and answer the kernel. Needs root. If this process dies the kernel
 // allows every paused program, so run it under systemd with Restart=always.
 //
-// This process must never exec anything (no system/popen/fork+exec): the child
-// would pause on itself.
+// Start the persistent model child before capture. During capture, model calls
+// use its private socket; our children (including simulations) bypass capture.
 #include <bpf/libbpf.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -264,9 +264,8 @@ long status_num(uint32_t pid, const char *key)
 	return v;
 }
 
-// Our own threads, and our descendants: the only programs we start are
-// sid-explore simulations, and their execs must run (inside the sandbox) or
-// the simulation would pause on us.
+// Our own threads and descendants: the model worker and sid-explore simulations
+// must not pause on our decisions.
 bool is_own(uint32_t tid)
 {
 	long tgid = status_num(tid, "Tgid");

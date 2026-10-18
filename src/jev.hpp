@@ -1,7 +1,5 @@
-// THE JEV MODEL PLUGS IN HERE. It is trained and implemented separately: define
-// jev_init() and jev_classify() in their own .cpp and add it to SRCS in the
-// Makefile. jev_stub.cpp holds weak placeholders that a real definition
-// replaces at link time.
+// Model interface used by command review. jev_laya.cpp starts a persistent Laya
+// child in jev_init() and sends Event JSON over a private socket for inference.
 //
 // jev_classify() sees the fully gathered Event: the command (argv, file, script),
 // the caller's context (user, uid/groups, origin: local/ssh/service/agent,

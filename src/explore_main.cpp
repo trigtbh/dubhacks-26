@@ -699,6 +699,15 @@ void simulate(const Opts &o, Report &r)
 	drain(fan, root, layers, acc);
 	close(fan);
 	r.exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+	// A command that died on a fatal signal crashed. sandbox_init reports it to us
+	// as exit code 128+signal, so recover the signal here. This is not a timeout or
+	// a network stop, so only reclassify a run that otherwise completed on its own.
+	if (r.outcome == kOutcomeCompleted && r.exit_code > 128) {
+		int sig = r.exit_code - 128;
+		if (sig == SIGSEGV || sig == SIGABRT || sig == SIGBUS || sig == SIGILL || sig == SIGFPE || sig == SIGSYS ||
+		    sig == SIGTRAP || sig == SIGQUIT)
+			r.outcome = kOutcomeCrashed;
+	}
 
 	char buf[kOutputMax];
 	ssize_t n = pread(out_fd, buf, sizeof(buf), 0);

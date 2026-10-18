@@ -44,11 +44,23 @@ static std::string json_field(const std::string &json, const std::string &key)
 	at += needle.size();
 	std::string out;
 	for (size_t i = at; i < json.size() && json[i] != '"'; i++) {
-		if (json[i] == '\\' && i + 1 < json.size())
-			i++;
-		out += json[i];
+		if (json[i] == '\\' && i + 1 < json.size()) {
+			char c = json[++i];  // undo the escaping to_json applied
+			out += c == 'n' ? '\n' : c == 't' ? '\t' : c == 'r' ? '\r' : c;
+		} else
+			out += json[i];
 	}
 	return out;
+}
+
+// Value of a top-level numeric field, e.g. field(j,"exit_code").
+static long json_int(const std::string &json, const std::string &key, long dflt)
+{
+	std::string needle = "\"" + key + "\":";
+	size_t at = json.find(needle);
+	if (at == std::string::npos)
+		return dflt;
+	return strtol(json.c_str() + at + needle.size(), nullptr, 10);
 }
 
 Simulation run_explore(const Event &ev, const ProgressFn &progress)
@@ -157,6 +169,9 @@ Simulation run_explore(const Event &ev, const ProgressFn &progress)
 		s.full_json = out.substr(nl + 1, nl2 == std::string::npos ? std::string::npos : nl2 - nl - 1);
 	}
 	s.outcome = json_field(s.summary_json, "outcome");
+	s.exit_code = (int)json_int(s.summary_json, "exit_code", -1);
+	s.output = json_field(s.full_json, "output");  // captured stdout+stderr, to reuse on approval
+	s.succeeded = s.outcome == kOutcomeCompleted && s.exit_code == 0;
 	s.ok = s.error.empty() && WIFEXITED(status) && WEXITSTATUS(status) == 0 && !s.full_json.empty();
 	if (!s.ok && s.error.empty())
 		s.error = "simulation failed (exit " + std::to_string(WIFEXITED(status) ? WEXITSTATUS(status) : -1) + ")";
@@ -221,6 +236,12 @@ Decision handle_unsure(const Event &ev, const JevResult &jev, ReviewQueue &q, co
 
 	Simulation sim = explore(ev, [&](const std::string &snap) { q.progress(id, snap); });
 	d.effects = sim.summary_json;
+	// Carry the simulated result forward, so an approved command's output and exit
+	// code are available to reuse rather than lost with the sandbox.
+	d.has_result = sim.ok;
+	d.result_exit = sim.exit_code;
+	d.result_success = sim.succeeded;
+	d.result_output = sim.output;
 
 	// Tell the reviewer plainly how the simulation ended. A command that timed out
 	// or tried to reach another machine is only partly previewed; approving it runs
@@ -230,6 +251,8 @@ Decision handle_unsure(const Event &ev, const JevResult &jev, ReviewQueue &q, co
 		note = "the command tried to open a connection to another machine; simulation stopped there";
 	else if (sim.outcome == kOutcomeTimedOut)
 		note = "the command was still running at the time limit; simulation stopped";
+	else if (sim.outcome == kOutcomeCrashed)
+		note = "the command crashed during simulation; the changes it made before crashing are shown";
 	else if (!sim.ok)
 		note = "could not simulate: " + sim.error;
 	std::string reason = jev.reason;

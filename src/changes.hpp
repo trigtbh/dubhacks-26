@@ -40,10 +40,14 @@ struct NetAttempt {
 
 // How a simulation ended.
 //   completed: the command exited by itself
+//   crashed:   the command died on a fatal signal (segfault, abort, ...)
 //   timed_out: still running at the time limit; stopped
 //   network:   tried to reach another machine; stopped there
 //   error:     the simulation could not be set up (see Report::error)
+// None of these is a verdict: a crashed, timed-out or network command is still
+// shown to a person to approve or reject, exactly like a clean completion.
 inline const char *const kOutcomeCompleted = "completed";
+inline const char *const kOutcomeCrashed = "crashed";
 inline const char *const kOutcomeTimedOut = "timed_out";
 inline const char *const kOutcomeNetwork = "network";
 inline const char *const kOutcomeError = "error";

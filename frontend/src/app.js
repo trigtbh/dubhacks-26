@@ -60,7 +60,8 @@ store.on('rec', (id, kind) => {
   if (kind === 'new' && r) say($('say'), (r.verdict === 'block' ? 'Blocked: ' : 'Held: ') + cmd(id));
 });
 store.on('q', (id, kind) => {
-  if (kind === 'end' && !store.replaying) {
+  const rec = store.recs.get(id);
+  if ((kind === 'end' || (kind === 'review' && rec && rec.review && rec.review.finished)) && !store.replaying) {
     say($('alert'), 'Report ready for ' + cmd(id) + '. Allow or block?');
   }
 });

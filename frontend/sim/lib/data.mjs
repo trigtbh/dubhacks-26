@@ -11,6 +11,7 @@ const AGENTS = ['claude', 'codex', 'gemini', 'cline', 'goose', 'aider'];
 const HUMANS = [['lucas', 1000], ['dev', 1001], ['maya', 1002], ['omar', 1003]];
 const SERVICES = [['www-data', 33], ['postgres', 114], ['jenkins', 998], ['nginx', 101]];
 const UNITS = ['cron.service', 'nginx.service', 'jenkins.service', 'myapp.service', 'postgresql.service'];
+const REMOTE_ADDRESSES = ['192.0.2.42', '198.51.100.28', '203.0.113.17', '2001:db8::24'];
 const PROJECTS = ['webapp', 'api-server', 'sid', 'dotfiles'];
 
 const w = (r, pairs) => {
@@ -57,7 +58,7 @@ export function persona(r, want = {}) {
   const cwd =
     utype === 'human' ? (origin === 'ssh' && r.chance(0.4) ? home : `${home}/projects/${project}`) : utype === 'root' ? r.pick(['/root', '/tmp']) : home;
   const detail =
-    origin === 'agent' ? r.pick(AGENTS) : origin === 'ssh' ? `sshd_pid=${r.int(900, 9000)}` : origin === 'service' ? r.pick(UNITS) : '';
+    origin === 'agent' ? r.pick(AGENTS) : origin === 'ssh' ? r.pick(REMOTE_ADDRESSES) : origin === 'service' ? r.pick(UNITS) : '';
   let caps;
   if (capset === 'none') caps = [];
   else if (capset === 'all') caps = 'all';

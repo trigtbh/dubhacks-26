@@ -16,7 +16,7 @@ struct Event {
 	std::string user, cwd;
 
 	std::string path;  // as given to execve, made absolute
-	std::string file;  // the real file about to run (from fanotify)
+	std::string file;  // resolved executable opened for inspection
 	std::vector<std::string> argv;
 	bool truncated = false;
 	std::string note;

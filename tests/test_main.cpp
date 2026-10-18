@@ -631,7 +631,7 @@ TEST(unsure_crash_still_asks_the_user)
 	Decision d = handle_unsure(unsure_event(), j, q, crashed_sim, std::chrono::seconds(5), nullptr, nullptr);
 	ui.join();
 	CHECK(d.verdict == Verdict::Allow);  // a crash is not an auto-rejection
-	CHECK(q.get("r1")->reason.find("crashed") != std::string::npos);
+	CHECK(q.get("ev1")->reason.find("crashed") != std::string::npos);
 }
 
 TEST(unsure_approved_allows)
@@ -688,7 +688,7 @@ TEST(unsure_reject_after_timeout_severs)
 	CHECK(d.verdict == Verdict::Block);
 	CHECK(severed_for.empty());  // a bare timeout is not a verdict
 	// The person comes back after the timeout and rejects it -> now it severs.
-	CHECK(q.answer("r1", false, "ops"));
+	CHECK(q.answer("ev1", false, "ops"));
 	CHECK_EQ(severed_for, "dev");
 }
 
@@ -707,7 +707,7 @@ TEST(unsure_failed_simulation_still_asks)
 	Decision d = handle_unsure(unsure_event(), j, q, broken, std::chrono::seconds(5), nullptr, nullptr);
 	ui.join();
 	CHECK(d.verdict == Verdict::Block);  // still asked a person, who denied it
-	CHECK(q.get("r1")->reason.find("could not simulate") != std::string::npos);
+	CHECK(q.get("ev1")->reason.find("could not simulate") != std::string::npos);
 }
 
 TEST(unsure_network_attempt_reported)
@@ -729,7 +729,7 @@ TEST(unsure_network_attempt_reported)
 	ui.join();
 	CHECK(d.verdict == Verdict::Allow);
 	CHECK(d.reason.find("network") != std::string::npos);
-	CHECK(q.get("r1")->reason.find("another machine") != std::string::npos);
+	CHECK(q.get("ev1")->reason.find("another machine") != std::string::npos);
 }
 
 // ---- origin and enforcement -----------------------------------------------------
@@ -865,7 +865,7 @@ TEST(unsure_denied_enforces_origin)
 	ui.join();
 	CHECK(d.verdict == Verdict::Block);
 	CHECK_EQ(severed_for, "dev");  // enforcement ran, with the denied command's event
-	CHECK(q.get("r1")->enforcement.find("\"enabled\":true") != std::string::npos);  // recorded on the review
+	CHECK(q.get("e")->enforcement.find("\"enabled\":true") != std::string::npos);  // recorded on the review
 }
 
 TEST(unsure_approved_does_not_enforce)
@@ -893,7 +893,7 @@ TEST(review_carries_model_output)
 	std::thread ui([&] { answer_when_seen(q, false); });
 	handle_unsure(unsure_event(), j, q, fake_sim, std::chrono::seconds(5), nullptr, nullptr);
 	ui.join();
-	std::string listed = review_summary_json(*q.get("r1"));
+	std::string listed = review_summary_json(*q.get("ev1"));
 	CHECK(listed.find("\"model\":{\"choice\":\"hold\",\"probabilities\":{\"allow\":0.4,\"hold\":0.45,\"block\":0.15}}") !=
 	      std::string::npos);
 }

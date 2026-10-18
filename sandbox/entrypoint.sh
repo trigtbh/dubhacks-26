@@ -18,6 +18,9 @@ chown "${DEV_USER}:${DEV_USER}" "${home}/.cache"
 
 ssh-keygen -A >/dev/null
 mkdir -p /run/sshd /var/log/sid
+# sid-web records each dashboard decision here and requires the file to exist;
+# create it (without clobbering a prior run's log) so /decide never 503s.
+touch /var/log/sid/decisions.jsonl
 cron
 
 # Build sid from a copy of the mounted source: it strips CRLF line endings (a
@@ -46,26 +49,25 @@ build_web() {
 
 if [[ -d /workspace/frontend ]]; then
     if build_web >/var/log/sid/web-build.log 2>&1; then
-        SID_WEB_ADDR=0.0.0.0 SID_WEB_PORT=8080 SID_WEB_ROOT=/var/lib/sid/web/dist \
-            nohup /usr/local/bin/sid-web >>/var/log/sid/web.log 2>&1 &
-        dashboard_pid=$!
+        # Supervise the dashboard: if it ever exits, bring it straight back, so the
+        # page stays reachable for the whole life of the container. Independent of
+        # the capture, so the dashboard is up even if the daemon is still starting
+        # or failed. SID_WEB_PORT falls back to 8080 inside; the published port is
+        # whatever sandbox.sh mapped on the host.
+        (
+            while true; do
+                SID_WEB_ADDR=0.0.0.0 SID_WEB_PORT="${SID_WEB_PORT:-8080}" SID_WEB_ROOT=/var/lib/sid/web/dist \
+                    /usr/local/bin/sid-web >>/var/log/sid/web.log 2>&1 || true
+                echo "sid: dashboard server exited; restarting in 1s" >>/var/log/sid/web.log
+                sleep 1
+            done
+        ) &
         for _ in $(seq 1 50); do
-            if grep -q '^sid-web: http://' /var/log/sid/web.log 2>/dev/null; then
-                echo "sid: dashboard on :8080"
-                break
-            fi
-            if ! kill -0 "$dashboard_pid" 2>/dev/null; then
-                echo "sid: dashboard server exited during startup"
-                tail -n 20 /var/log/sid/web.log >&2 || true
-                dashboard_pid=
-                break
-            fi
+            grep -q '^sid-web: http://' /var/log/sid/web.log 2>/dev/null && { echo "sid: dashboard on :8080"; break; }
             sleep 0.1
         done
-        if [[ -n "${dashboard_pid:-}" ]] && ! grep -q '^sid-web: http://' /var/log/sid/web.log 2>/dev/null; then
-            echo "sid: dashboard server did not become ready"
-            tail -n 20 /var/log/sid/web.log >&2 || true
-        fi
+        grep -q '^sid-web: http://' /var/log/sid/web.log 2>/dev/null ||
+            { echo "sid: dashboard starting (it will keep retrying)"; tail -n 20 /var/log/sid/web.log >&2 || true; }
     else
         tail -n 10 /var/log/sid/web-build.log
         echo "sid: dashboard build failed (see /var/log/sid/web-build.log); capture is unaffected"

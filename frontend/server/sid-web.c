@@ -586,7 +586,7 @@ static void serve_file(Client *c, const char *path, int head)
 // clock is off and whether to offer Allow and Block at all.
 static size_t clock_frame(char *out, size_t cap)
 {
-	int ok = review_sock && access(review_sock, F_OK) == 0;  // can we reach the daemon's review socket?
+	int ok = access(decision_path, W_OK) == 0;  // can a decision be recorded?
 	return (size_t)snprintf(out, cap, "event: clock\ndata: {\"now\":%lld,\"decide\":%s}\n\n", (long long)wall_ms(),
 				ok ? "true" : "false");
 }
@@ -822,12 +822,40 @@ static void decide(Client *c)
 		}
 
 	if (!dup) {
-		char err[160] = "";
-		if (!sid_review(allow ? "APPROVE" : "DENY", idv, err, sizeof(err))) {
-			fprintf(stderr, "sid-web: cannot send a decision to %s: %s\n", review_sock ? review_sock : "(unset)", err);
+		// Record the decision durably first (this is the gating step: 503 if it
+		// cannot be written), then deliver it to the daemon over the review socket.
+		struct sockaddr_in pa = {0};
+		socklen_t pl = sizeof(pa);
+		char ip[INET_ADDRSTRLEN] = "?", line[256];
+		if (getpeername(c->fd, (struct sockaddr *)&pa, &pl) == 0)
+			inet_ntop(AF_INET, &pa.sin_addr, ip, sizeof(ip));
+		int ll = snprintf(line, sizeof(line), "{\"v\":1,\"id\":\"%s\",\"verdict\":\"%s\",\"t\":%lld,\"peer\":\"%s:%u\"}\n",
+				  idv, allow ? "allow" : "block", (long long)wall_ms(), ip, ntohs(pa.sin_port));
+		struct stat ds;
+		const char *why = NULL;
+		ssize_t w;
+		int fd = open(decision_path, O_WRONLY | O_APPEND | O_CLOEXEC);
+		if (fd < 0)
+			why = strerror(errno);
+		else if (fstat(fd, &ds) != 0 || !S_ISREG(ds.st_mode))
+			why = "not a regular file";
+		else if (ds.st_size > DECIDE_MAX)
+			why = "file is full";
+		else if ((w = write(fd, line, (size_t)ll)) != ll)  // one write: the daemon never sees half a line
+			why = w < 0 ? strerror(errno) : "short write";
+		if (fd >= 0)
+			close(fd);
+		if (why) {
+			fprintf(stderr, "sid-web: cannot record a decision in %s: %s\n", decision_path, why);
 			jerr(c, 503, "Service Unavailable", "decisions unavailable");
 			return;
 		}
+		// Deliver to the daemon. Best effort: the decision is already recorded, and
+		// the daemon leaves the command held (fail-safe) if this does not reach it.
+		char serr[160] = "";
+		if (!sid_review(allow ? "APPROVE" : "DENY", idv, serr, sizeof(serr)))
+			fprintf(stderr, "sid-web: decision recorded but not delivered to %s: %s\n",
+				review_sock ? review_sock : "(unset)", serr);
 		unsigned k = done_at++ % 256;
 		done[k].h = h;
 		done[k].allow = allow;

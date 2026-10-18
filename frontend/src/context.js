@@ -176,9 +176,9 @@ export function synth(ev) {
     // `file` and argv[0] are not necessarily the executable path; leave it unknown when `path` is absent.
     program: esc(str(ev.path)),
     origin: structOrigin(ev, true) || { kind: 'unknown', detail: '' },
-    // A UID does not identify a human, service, or root account reliably. That classification
-    // is shown only when the inspected context explicitly records it.
-    user: { name: esc(name), uid, type: 'unknown' },
+    // Classify the account by the standard UID ranges: 0 is root, 1..999 are
+    // system/service accounts, 1000+ are human logins; unknown without a UID.
+    user: { name: esc(name), uid, type: uid === null ? 'unknown' : uid === 0 ? 'root' : uid < 1000 ? 'service' : 'human' },
     groups: (Array.isArray(ev.groups) ? ev.groups : []).slice(0, 256).map((g) => esc(str(g))).filter(Boolean),
     sudo: 'unknown',
     caps: { all: false, list: [], unknown: true },

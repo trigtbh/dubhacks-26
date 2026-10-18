@@ -25,6 +25,9 @@ export function mountFeed(host, { store, ui, search, shapes }) {
     if (rec.decision) return [`Held command, then ${rec.decision.verdict === 'allow' ? 'allowed' : 'blocked'}`, 'is-' + rec.decision.verdict];
     if (rec.verdict === 'block') return ['', ''];
     if (rec.pending) return ['Sending decision…', 'is-busy'];
+    if (rec.review) return rec.review.finished ? ['Simulation ready for review', 'is-need']
+      : store.daemon === 'down' ? ['Simulation unavailable', 'is-warn']
+      : rec.review.summary ? ['Simulating command', 'is-busy'] : ['Starting simulation…', 'is-busy'];
     const st = store.state(rec);
     if (st === 'queued') return ['Starting quarantine…', 'is-busy'];
     if (st === 'investigating') { const r = store.remaining(rec); return [r > 0 ? `Investigating, ${mmss(r)} left` : 'Finishing…', 'is-busy']; }
@@ -188,7 +191,7 @@ export function mountFeed(host, { store, ui, search, shapes }) {
 
   const subs = [
     store.on('rec', schedule),
-    store.on('q', (id, kind) => { if (kind === 'start' || kind === 'end') schedule(); }),
+    store.on('q', (id, kind) => { if (kind === 'start' || kind === 'end' || kind === 'review') schedule(); }),
     store.on('conn', schedule),
   ];
   // Reset the page size when the search or filters change, then redraw.

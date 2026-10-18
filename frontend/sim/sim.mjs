@@ -159,16 +159,24 @@ async function main() {
       { verdict: 'block', choice: 'block', decided_by: 'model', probabilities: { allow: 0.25, hold: 0.20, block: 0.55 }, entry: by('rm-rf-root'), want: { origin: 'ssh', utype: 'root' } },
       { verdict: 'block', choice: 'hold', decided_by: 'rule', probabilities: { allow: 0.15, hold: 0.70, block: 0.15 }, entry: by('chmod-shadow'), want: { origin: 'service', utype: 'service' } },
       { verdict: 'block', choice: 'allow', decided_by: 'rule', probabilities: { allow: 0.88, hold: 0.09, block: 0.03 }, entry: by('bash-dev-tcp'), want: { origin: 'local', utype: 'human' } },
+      { verdict: 'block', choice: 'block', decided_by: 'model', probabilities: { allow: 0.01, hold: 0.04, block: 0.95 }, entry: by('ssh-key-exfil'), want: { origin: 'agent', utype: 'human' } },
+      { verdict: 'block', choice: 'block', decided_by: 'model', probabilities: { allow: 0.18, hold: 0.17, block: 0.65 }, entry: by('cron-persist'), want: { origin: 'ssh', utype: 'human' } },
+      { verdict: 'block', choice: 'hold', decided_by: 'rule', probabilities: { allow: 0.22, hold: 0.49, block: 0.29 }, entry: by('useradd-backdoor'), want: { origin: 'service', utype: 'service' } },
+      { verdict: 'block', choice: 'allow', decided_by: 'rule', probabilities: { allow: 0.74, hold: 0.18, block: 0.08 }, entry: by('sudoers-nopasswd'), want: { origin: 'local', utype: 'root' } },
+      { verdict: 'block', choice: 'block', decided_by: 'model', probabilities: { allow: 0.08, hold: 0.12, block: 0.80 }, entry: by('curl-chmod-run'), want: { origin: 'agent', utype: 'human' } },
+      { verdict: 'block', choice: 'block', decided_by: 'model', probabilities: { allow: 0.12, hold: 0.24, block: 0.64 }, entry: by('disable-sid'), want: { origin: 'ssh', utype: 'root' } },
+      { verdict: 'block', choice: 'hold', decided_by: 'rule', probabilities: { allow: 0.08, hold: 0.86, block: 0.06 }, entry: by('shadow-post'), want: { origin: 'service', utype: 'service' } },
+      { verdict: 'block', choice: 'allow', decided_by: 'rule', probabilities: { allow: 0.66, hold: 0.22, block: 0.12 }, entry: by('scp-aws'), want: { origin: 'local', utype: 'human' } },
     ];
     for (const example of examples) {
       const { ev } = mk(example.verdict, example.entry, example.want, example);
       write(ev);
       say('MODEL', `${ev.verdict} decision; ${example.probabilities.allow * 100}% allow, ${example.probabilities.hold * 100}% hold, ${example.probabilities.block * 100}% block`);
-      await sleep(350);
+      await sleep(180);
     }
   }
 
-  // Calm traffic: a gap of about 40 s between events, and enough of them worth showing that the page is never
+  // Demo traffic: a mean gap of about 3 s between events, and enough of them worth showing that the page is never
   // empty for long: 40% allow (the server drops these), 38% block, 20% hold, 2% hostile text.
   let stopped = false;
   async function loop() {
@@ -177,7 +185,7 @@ async function main() {
     await sleep(6000);
     hold(null, {}, {});
     while (!stopped) {
-      await sleep(r.exp(40000));
+      await sleep(r.exp(3000));
       const x = r.next();
       if (x < 0.4) allow();
       else if (x < 0.78) block();

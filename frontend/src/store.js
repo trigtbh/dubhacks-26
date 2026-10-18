@@ -91,6 +91,7 @@ export function createStore(opts = {}) {
 
   const recs = new Map();
   const order = [];                 // ids, newest first
+  const waitingReviews = new Map(); // ReviewQueue snapshots that arrive before their event-log row
   const subs = { rec: new Set(), q: new Set(), conn: new Set() };
   const activeQ = [];               // ids of undecided holds, least recently updated first
   let anchor = { mono: env.mono(), wall: env.wall() };
@@ -144,9 +145,9 @@ export function createStore(opts = {}) {
   // ---- the truth table ----
 
   // blocked  a command the daemon blocked outright
-  // queued   held, no quarantine started yet
-  // investigating  quarantine running (or finishing: its countdown ended less than the grace ago)
-  // report   the quarantine ended and its report is in
+  // queued   held, no simulation progress has arrived yet
+  // investigating  ReviewQueue simulation progress or a running legacy quarantine
+  // report   the simulation or quarantine summary is ready for review
   // deciding a decision was sent and not yet settled
   // noreport the countdown ended over the grace ago with no end line, or the daemon is down
   // settled  a person (or a timeout) decided
@@ -155,6 +156,7 @@ export function createStore(opts = {}) {
     if (rec.decision || rec.verdict === 'allow') return 'settled';
     if (rec.verdict === 'block') return 'blocked';
     if (rec.pending) return 'deciding';
+    if (rec.review) return rec.review.finished ? 'report' : s.daemon === 'down' ? 'noreport' : rec.review.summary ? 'investigating' : 'queued';
     const q = rec.q;
     if (q && q.end) return 'report';
     if (!q || !q.start) return 'queued';
@@ -198,6 +200,7 @@ export function createStore(opts = {}) {
       pending: null,
       failed: null,
       q: null,
+      review: null,
     };
   }
 
@@ -236,6 +239,68 @@ export function createStore(opts = {}) {
     return true;
   }
 
+  function applyReview(rec, review) {
+    if (!rec || !review || (rec.verdict !== 'hold' && rec.from !== 'hold')) return false;
+    const summary = review.summary && typeof review.summary === 'object' ? review.summary : null;
+    const finished = !!(summary && summary.finished === true);
+    const model = parseModel(review.model);
+    const modelChanged = !!model && JSON.stringify(model) !== JSON.stringify(rec.model);
+    if (model) rec.model = model;
+    const prior = rec.review;
+    if (prior && prior.state === review.state && prior.reason === review.reason &&
+        JSON.stringify(prior.summary) === JSON.stringify(summary) && !modelChanged) return false;
+
+    rec.review = {
+      state: typeof review.state === 'string' ? review.state : 'pending',
+      reason: typeof review.reason === 'string' ? review.reason : '',
+      summary,
+      finished,
+    };
+
+    const q = rec.q || (rec.q = newQ());
+    touch(rec);
+    if (!q.start) q.start = { duration_ms: null, ends_at: null, t: num(review.created_ms), limits: null };
+    q.endsAt = null;
+    q.endMono = 0;
+
+    const files = Array.isArray(summary && summary.top) ? summary.top : [];
+    q.files = new Map();
+    for (const f of files) {
+      if (!f || typeof f !== 'object' || typeof f.path !== 'string') continue;
+      const op = ({ added: 'create', deleted: 'delete', modified: 'modify', moved: 'move' })[f.kind];
+      if (!op) continue;
+      const from = op === 'move' && typeof f.from === 'string' ? f.from : null;
+      const path = from || f.path;
+      const to = from ? f.path : null;
+      q.files.set(path + '|' + op, { op, path, to, lp: path.toLowerCase(), bytes: null, mode: null, n: 1, t: num(summary.elapsed_ms) });
+    }
+    const rawOutput = typeof (summary && summary.output) === 'string' ? summary.output : '';
+    const keepOutput = !q.dropped && (ui.sel === rec.id || activeQ.includes(rec.id));
+    const output = keepOutput ? cut(rawOutput, LIMITS.outBytes) || '' : '';
+    q.out = output ? [{ stream: 'stdout', text: output, open: !finished }] : [];
+    q.outBytes = output.length;
+    q.outTotal = rawOutput.length;
+    q.outLines = (rawOutput.match(/\n/g) || []).length;
+    q._open.stdout = output && !finished ? q.out[0] : null;
+    q._open.stderr = null;
+    q.dropped = q.dropped || rawOutput.length > output.length;
+    const counts = summary && summary.counts && typeof summary.counts === 'object' ? summary.counts : {};
+    q.fileCount = isNum(counts.total) ? counts.total : q.files.size + (isNum(summary && summary.more) ? summary.more : 0);
+    q.filesPushed = Math.max(0, q.fileCount - q.files.size);
+    if (finished) {
+      q.end = {
+        how: cut(summary.outcome, 16) || 'completed',
+        code: num(summary.exit_code), signal: null,
+        elapsed_ms: num(summary.elapsed_ms), counts,
+        touched: [...q.files.values()].slice(0, 8).map((f) => f.path),
+        summary: '', t: null,
+      };
+    } else q.end = null;
+    q.rev++;
+    emit('q', rec.id, 'review');
+    return true;
+  }
+
   function onEvent(o) {
     const rec = recs.get(o.id);
     const v = o.verdict;
@@ -245,6 +310,8 @@ export function createStore(opts = {}) {
       recs.set(r.id, r);
       order.unshift(r.id);
       evict();
+      const review = waitingReviews.get(r.id);
+      if (review) { waitingReviews.delete(r.id); applyReview(r, review); }
       emit('rec', r.id, 'new');
       return true;
     }
@@ -404,6 +471,28 @@ export function createStore(opts = {}) {
     return onEvent(o);
   };
 
+  // ReviewQueue carries progress summaries separately from the event log. Keep
+  // unmatched snapshots briefly so either stream can arrive first on connect.
+  s.ingestReviews = (line) => {
+    let data = line;
+    if (typeof line === 'string') {
+      if (line.length > LIMITS.line) return false;
+      try { data = JSON.parse(line); } catch (e) { return false; }
+    }
+    if (!data || typeof data !== 'object' || !Array.isArray(data.reviews)) return false;
+    let changed = false;
+    for (const review of data.reviews) {
+      if (!review || typeof review.id !== 'string' || review.id === '' || review.id.length > 128) continue;
+      const rec = recs.get(review.id);
+      if (rec) changed = applyReview(rec, review) || changed;
+      else {
+        waitingReviews.set(review.id, review);
+        while (waitingReviews.size > LIMITS.records) waitingReviews.delete(waitingReviews.keys().next().value);
+      }
+    }
+    return changed;
+  };
+
   s.setPending = (id, verdict, err) => {
     const rec = recs.get(id);
     if (!rec || rec.decision) return;
@@ -527,6 +616,9 @@ export function createStore(opts = {}) {
         s.daemon = v;
         emit('conn', s.conn, s.daemon);
       }
+    });
+    cur.addEventListener('reviews', (m) => {
+      if (es === cur) s.ingestReviews(m && m.data);
     });
     cur.onerror = () => {
       if (es !== cur) return;

@@ -1,6 +1,7 @@
-// Shapes for the sid dashboard: glyphs, facet silhouettes, probability and privilege marks, path and history
+// Shapes for the sid dashboard: icon glyphs, facet silhouettes, probability and privilege marks, path and history
 // marks, file-op glyphs, the countdown ring and ornaments. Everything is built with createElement(NS); event text
 // only ever reaches textContent or a plain-string attribute. Colour and motion live in shapes.css.
+import ICONS from './icons.js';
 const { PI, cos, sin, min, max, floor, ceil, round, log } = Math;
 const NS = 'http://www.w3.org/2000/svg', PI2 = PI * 2, HALF = PI / 2;
 const R = n => round(n * 10) / 10;
@@ -27,74 +28,49 @@ const W = (child, tip, cls) => {
   return e;
 };
 
-// Status glyphs: Crystal's path data (bundle.js GLYPH), 10x10 grid.
-const ST = {
-  __proto__: null,
-  allow: 'M.53 6.07l2.7 2.7L4.57 7.43 1.87 4.73M4.62 8.71l5-5.9L8.18 1.59l-5 5.9',
-  hold: 'M1.6 1V9H4V1M6 1V9H8.4V1',
-  block: 'M.89 2.31l6.8 6.8L9.11 7.69 2.31 .89m5.38 0L.89 7.69 2.31 9.11 9.11 2.31',
-};
+// Icons are Google's Material Design Icons (sharp, Apache-2.0): the files in icons/ are read into icons.js by
+// build.mjs. The tables below only say which icon stands for what; no icon is drawn by hand.
+const ST = { __proto__: null, allow: 'check', hold: 'pause', block: 'close' };    // verdict glyphs
 const LABEL = { __proto__: null, allow: 'Allow', hold: 'Hold', block: 'Block' };
-// Other glyphs, 16x16 grid. One path per '|'; a leading ~ strokes, ! strokes dashed, * fills even-odd, else fills.
 const G = {
   __proto__: null,
-  agent: '~M8 1l6 3.5v7L8 15 2 11.5v-7z|M6.2 5.6 10.8 8 6.2 10.4',
-  ssh: 'M2 4 6 8 2 12H4.2l4-4-4-4|M8 4l4 4-4 4h2.2l4-4-4-4',
-  service: '~M5.2 1.5h5.6l3.7 3.7v5.6l-3.7 3.7H5.2L1.5 10.8V5.2z|M8 5.6 10.4 8 8 10.4 5.6 8',
-  local: '~M2 2H14v9l-3 3H2z|M4.5 9H9v1.6H4.5',
-  'user-human': 'M3.5 8a4.5 4.5 0 1 0 9 0 4.5 4.5 0 1 0-9 0',
-  'user-service': 'M3.5 3.5h9v9h-9',
-  'user-root': 'M6.2 3.3 8 5.1 9.8 3.3 14.5 8 8 14.5 1.5 8',
-  lens: '~M5.5 2.5h3l2 2v3l-2 2h-3l-2-2v-3z|~M9.8 9.8l4 4',
-  theme: '~M2.5 8a5.5 5.5 0 1 0 11 0 5.5 5.5 0 1 0-11 0z|M8 2.5A5.5 5.5 0 0 0 8 13.5',
-  back: '~M13.5 8H3M6.5 4.5 3 8 6.5 11.5',
-  up: '~M4 10 8 6l4 4',
-  down: '~M4 6l4 4 4-4',
-  retry: '~M12.5 9.6A4.8 4.8 0 1 1 12.2 5.6|M13.7 8.4l.2-4-3.4 2.2',
-  lock: 'M3.5 7h9v7h-9|~M5.5 7V4.8L7 2.8H9l1.5 2V7',
-  unknown: '!M8 1.5 14.5 8 8 14.5 1.5 8z|M7.2 7.2H8.8V8.8H7.2',
-  spinner: '~M8 1.5l5.6 3.25v6.5L8 14.5',
-  suspect: '~M8 2l6.5 11.5H1.5z|M7.3 6H8.7V9.6H7.3|M7.3 10.8H8.7v1.4H7.3',
-  arrow: '~M2.5 8H13M9.5 4.5 13 8 9.5 11.5',
-  plus: 'M7.2 2.5H8.8V7.2h4.7V8.8H8.8v4.7H7.2V8.8H2.5V7.2H7.2',
-  chevron: '~M6 3.5 10.5 8 6 12.5',
-  chevrons: '~M1 3.5 5 8 1 12.5|~M6 3.5 10 8 6 12.5|~M11 3.5 15 8 11 12.5',
+  agent: 'smart_toy', ssh: 'terminal', service: 'memory', local: 'computer',          // where a command came from
+  program: 'code', address: 'lan', unit: 'settings_suggest',                           // the origin's detail
+  'user-human': 'person', 'user-service': 'precision_manufacturing', 'user-root': 'admin_panel_settings',
+  uid: 'badge', account: 'admin_panel_settings', groups: 'groups', sudo: 'security', caps: 'tune',
+  folder: 'folder', exec: 'bolt', files: 'description', history: 'history', source: 'sensors',
+  unknown: 'help_outline', chevrons: 'keyboard_double_arrow_right',
 };
-const OP = {
-  __proto__: null,
-  create: '*M2 2H14V14H2M7.2 4.5H8.8V7.2h2.7V8.8H8.8v2.7H7.2V8.8H4.5V7.2H7.2',
-  modify: '~M2.8 2.8H13.2V13.2H2.8z|M2.8 2.8H13.2L2.8 13.2',
-  delete: '~M2.8 2.8H13.2V13.2H2.8z|~M2.5 13.5l11-11',
-  move: '~M1.8 5.8H5.3v4.4H1.8z|~M5.8 8H9.4|M8.6 6.2 10.4 8 8.6 9.8|M10.5 5.5H15v5H10.5',
-  chmod: 'M2 2.8H14V5H2|M2 6.9h8V9.1H2|M2 11H12v2.2H2',
-  read: '~M2.7 8a5.3 5.3 0 1 0 10.6 0 5.3 5.3 0 1 0-10.6 0z',
-};
-const M = { __proto__: null, '~': 'sh-s', '!': 'sh-s sh-d', '*': 'sh-f sh-eo' };
-const draw = (spec, cls, size) => {
-  const s = svg(size, size, cls, '0 0 16 16');
-  for (const d of spec.split('|')) { const c = M[d[0]]; P(c ? d.slice(1) : d, c || 'sh-f', s); }
-  return s;
-};
+const OP = { __proto__: null, create: 'add_box', modify: 'edit', delete: 'delete', move: 'drive_file_move', chmod: 'key', read: 'visibility' };
+const paint = (s, icon) => { for (const d of ICONS[icon].split('|')) P(d, 'sh-f', s); return s; };
+const draw = (icon, cls, size) => paint(svg(size, size, cls, '0 0 24 24'), icon);
 
-export function glyph(name, size = 16) {
-  const st = ST[name];
-  if (st) { const s = svg(size, size, `sh-glyph sh-gs sh-gs--${name}`, '0 0 10 10'); P(st, 'sh-f', s); return s; }
-  return draw(G[name] || G.unknown, 'sh-glyph' + (name === 'spinner' ? ' sh-spin' : ''), size);
+export function glyph(name, size = 16, cls = '') {
+  const st = ST[name], c = 'sh-glyph' + (cls ? ' ' + cls : '');
+  return st ? draw(st, `${c} sh-gs sh-gs--${name}`, size) : draw(G[name] || G.unknown, c, size);
 }
+// Show another glyph in an existing one (a tile whose origin changes).
+export function reglyph(s, name) { s.replaceChildren(); paint(s, G[name] || G.unknown); }
 
-// Verdict chip: the same markup and classes as Crystal.chip, so Crystal's .cr-verdict rules and status.css apply.
+// Verdict chip: Crystal's .cr-verdict markup, so its chip rules and status.css apply. The glyph is ours, not
+// .cr-glyph, because Crystal's CSS would force its own check, pause and cross onto that class.
 export function chip(v) {
   const e = H('span', `cr-verdict cr-cut cr-verdict--${v}`);
-  P(ST[v] || '', null, S('svg', { class: 'cr-glyph', viewBox: '0 0 10 10', 'aria-hidden': 'true' }, e));
+  e.appendChild(draw(ST[v] || G.unknown, 'sh-glyph sh-gs', 14));
   e.appendChild(H('span', 'cr-label', LABEL[v] || v));
   return e;
 }
-// Swap a chip's (or a status glyph's) verdict: class, label and path. The CSS d: rule morphs the path.
+// Swap a chip's (or a status glyph's) verdict: class, label and icon. Two icons cannot tween, so the new one pops in.
 export function morph(el, v) {
   el.setAttribute('class', (el.getAttribute('class') || '').replace(/\b(cr-verdict|sh-gs)--\w+/, `$1--${v}`));
   const l = el.querySelector('.cr-label'), p = el.querySelector('path');
   if (l) l.textContent = LABEL[v] || v;
-  if (p && ST[v]) p.setAttribute('d', ST[v]);
+  if (p && ST[v]) {
+    p.setAttribute('d', ICONS[ST[v]]);
+    const g = p.parentNode;
+    if (g.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches)
+      g.animate([{ transform: 'scale(.4)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 200, easing: 'cubic-bezier(.2, .8, .2, 1)' });
+  }
 }
 
 // Silhouettes, clockwise in css px. block = parallelogram (lean `tip`, default 12) unless `cut` is passed, then

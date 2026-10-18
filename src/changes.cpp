@@ -69,6 +69,8 @@ std::string head_json(const Report &r)
 			",\"finished\":" + (r.finished ? "true" : "false") + ",\"outcome\":" + json_str(r.outcome) +
 			",\"network\":" + net_json(r.network) +
 			",\"exit_code\":" + std::to_string(r.exit_code) + ",\"timed_out\":" + (r.timed_out ? "true" : "false") +
+			// A clean, self-finished run with exit 0: its result is safe to reuse.
+			",\"success\":" + (r.finished && r.outcome == kOutcomeCompleted && r.exit_code == 0 ? "true" : "false") +
 			",\"elapsed_ms\":" + num(r.elapsed_ms);
 	if (!r.error.empty())
 		s += ",\"error\":" + json_str(r.error);

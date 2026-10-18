@@ -596,6 +596,52 @@ void answer_when_seen(ReviewQueue &q, bool approve, std::string *seen_reason = n
 	}
 }
 
+Simulation crashed_sim(const Event &, const ProgressFn &)
+{
+	Simulation s;
+	s.ok = true;  // the simulation ran fine; the command inside it crashed
+	s.summary_json = "{\"outcome\":\"crashed\",\"exit_code\":139}";
+	s.full_json = "{\"changes\":[]}";
+	s.outcome = "crashed";
+	return s;
+}
+
+TEST(unsure_forwards_result_on_success)
+{
+	ReviewQueue q;
+	JevResult j;
+	j.choice = JevChoice::Hold;
+	Explorer ok = [](const Event &, const ProgressFn &) {
+		Simulation s;
+		s.ok = true;
+		s.summary_json = "{\"outcome\":\"completed\",\"exit_code\":0,\"success\":true}";
+		s.full_json = "{\"output\":\"hello\\n\"}";
+		s.outcome = "completed";
+		s.exit_code = 0;
+		s.output = "hello\n";
+		s.succeeded = true;
+		return s;
+	};
+	std::thread ui([&] { answer_when_seen(q, true); });
+	Decision d = handle_unsure(unsure_event(), j, q, ok, std::chrono::seconds(5), nullptr, nullptr);
+	ui.join();
+	CHECK(d.verdict == Verdict::Allow);
+	CHECK(d.has_result && d.result_success && d.result_exit == 0);
+	CHECK_EQ(d.result_output, "hello\n");  // carried forward to reuse on approval
+}
+
+TEST(unsure_crash_still_asks_the_user)
+{
+	ReviewQueue q;
+	JevResult j;
+	j.choice = JevChoice::Hold;
+	std::thread ui([&] { answer_when_seen(q, true); });  // the user looks at it and approves
+	Decision d = handle_unsure(unsure_event(), j, q, crashed_sim, std::chrono::seconds(5), nullptr, nullptr);
+	ui.join();
+	CHECK(d.verdict == Verdict::Allow);  // a crash is not an auto-rejection
+	CHECK(q.get("r1")->reason.find("crashed") != std::string::npos);
+}
+
 TEST(unsure_approved_allows)
 {
 	ReviewQueue q;

@@ -21,7 +21,10 @@
 struct Simulation {
 	bool ok = false;
 	std::string summary_json, full_json;  // the two lines sid-explore prints
-	std::string outcome;                  // completed | timed_out | network | error
+	std::string outcome;                  // completed | crashed | timed_out | network | error
+	int exit_code = -1;                   // the simulated command's exit code
+	std::string output;                   // its captured stdout+stderr (first few KB)
+	bool succeeded = false;               // completed on its own with exit 0
 	std::string error;
 };
 

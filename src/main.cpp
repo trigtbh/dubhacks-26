@@ -319,6 +319,10 @@ void handle(int ffd, int efd, uint32_t tid)
 			t_pending = nullptr;
 			ev.explored = d.explored;
 			ev.effects = d.effects;
+			ev.has_result = d.has_result;
+			ev.result_exit = d.result_exit;
+			ev.result_success = d.result_success;
+			ev.result_output = d.result_output;
 			ev.verdict = verdict_name(d.verdict);
 			ev.decided_by = d.decided_by;
 			ev.reason = d.reason;

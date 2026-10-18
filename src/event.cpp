@@ -106,6 +106,11 @@ std::string Event::to_json() const
 	j.raw("score", has_score ? num(score) : "null");
 	j.raw("explored", explored ? "true" : "false");
 	j.raw("effects", effects.empty() ? "null" : effects);
+	if (has_result)
+		j.raw("result", "{\"exit_code\":" + std::to_string(result_exit) + ",\"success\":" +
+				    (result_success ? "true" : "false") + ",\"output\":" + esc(result_output) + "}");
+	else
+		j.raw("result", "null");
 	j.raw("score_after", "null");
 	if (!attack_id.empty()) j.str("attack_id", attack_id);
 	j.raw("latency_ms", num(latency_ms));

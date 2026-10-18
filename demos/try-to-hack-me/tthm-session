@@ -1,0 +1,4 @@
+#!/bin/sh
+unset SSH_ORIGINAL_COMMAND
+export PS1='guest@worker:~/workspace$ '
+exec /usr/local/bin/sid-session

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111315">
+  <title>Try to hack this page</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/xterm.css">
+  <link rel="stylesheet" href="/assets/base.css">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/assets/xterm.js" defer></script>
+  <script src="/assets/addon-fit.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="page">
+    <section class="intro" aria-labelledby="title">
+      <h1 id="title">Try to hack this page.</h1>
+    </section>
+
+    <main class="workspace challenge-workspace" id="workspace">
+      <span class="fake-cursor" id="fake-cursor" aria-hidden="true"><i></i></span>
+      <section class="terminal" aria-label="Worker shell">
+        <div class="terminal-screen" id="terminal" aria-label="Worker shell terminal"></div>
+        <span class="sr-only" id="shell-state" role="status" aria-live="polite">Connecting</span>
+      </section>
+
+      <iframe class="panel dashboard" id="review-dashboard" src="/dashboard/" title="SID dashboard" tabindex="-1"></iframe>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,45 @@
+eval items 174 from /homes/iws/tmoore23/dubhacks-26/.data/pilot-v2/release/validation.jsonl (skipped {}, 0 overlapping training/calibration items)
+train items 1165, calibration items 0, eval items 174 (/homes/iws/tmoore23/dubhacks-26/.data/pilot-v2/release/validation.jsonl), skipped {}, device cuda
+optimizer budget: 1165 train item(s), effective batch up to 16 (micro_batch 4 x grad_accum 4), 73 optimizer updates over 1 epoch(s)
+epoch 1/1 step 10 loss 0.7773
+epoch 1/1 step 20 loss 0.6507
+epoch 1/1 step 30 loss 0.5311
+epoch 1/1 step 40 loss 0.4187
+epoch 1/1 step 50 loss 1.7901
+epoch 1/1 step 60 loss 0.7497
+epoch 1/1 step 70 loss 0.3622
+epoch 1/1 step 80 loss 0.5960
+epoch 1/1 step 90 loss 0.6786
+epoch 1/1 step 100 loss 0.6950
+epoch 1/1 step 110 loss 0.6722
+epoch 1/1 step 120 loss 0.5407
+epoch 1/1 step 130 loss 0.8544
+epoch 1/1 step 140 loss 1.1662
+epoch 1/1 step 150 loss 0.2568
+epoch 1/1 step 160 loss 0.5103
+epoch 1/1 step 170 loss 0.2274
+epoch 1/1 step 180 loss 0.3817
+epoch 1/1 step 190 loss 0.6695
+epoch 1/1 step 200 loss 0.4565
+epoch 1/1 step 210 loss 0.4999
+epoch 1/1 step 220 loss 0.6744
+epoch 1/1 step 230 loss 0.2588
+epoch 1/1 step 240 loss 0.3450
+epoch 1/1 step 250 loss 0.9200
+epoch 1/1 step 260 loss 0.1282
+epoch 1/1 step 270 loss 0.2631
+epoch 1/1 step 280 loss 0.6852
+epoch 1/1 step 290 loss 0.1219
+epoch 1/1 mean loss 0.6130
+
+=== Evaluation (before vs after fine-tuning on 174 held-out items from /homes/iws/tmoore23/dubhacks-26/.data/pilot-v2/release/validation.jsonl) ===
+Metric                 Before         After          Delta         
+-----------------------------------------------------------------
+Accuracy               0.4655         0.7069         +0.2414       
+Loss                   1.0950         0.6667         -0.4283       
+ECE                    0.1567         0.1307         -0.0260       
+Brier (multi-class)    0.6514         0.3834         -0.2680       
+Brier (top-1)          0.2566         0.1812         -0.0754       
+Mean Confidence        0.5298         0.8189         +0.2891       
+-----------------------------------------------------------------
+

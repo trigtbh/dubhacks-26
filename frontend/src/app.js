@@ -36,7 +36,13 @@ const bar = mountBar(barEl, { ...deps, back: () => setView('list') });
 const stage = mountStage($('stage'), deps);
 
 onUI((u) => {
-  if (u.sel !== shown) { shown = u.sel; stage.show(u.sel); }
+  // Only react to a selection change. Reacting to every ui change (e.g. typing in
+  // the search box, which updates ui.q) would flip to the stage view on each
+  // keystroke and, on narrow viewports, hide the list and the search box so the
+  // results never appear to filter.
+  if (u.sel === shown) return;
+  shown = u.sel;
+  stage.show(u.sel);
   if (!auto && u.sel) { cleared = false; setView('stage'); }
 });
 

@@ -1,2 +1,6 @@
 .sandbox/
 build/
+models
+.venv
+__pycache__/
+.data

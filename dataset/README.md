@@ -19,10 +19,15 @@ working directory; scripts load sibling modules explicitly.
   on gold; that result is a fixed report, not a fresh holdout for further tuning.
 - **Expansion draft:** `.data/expansion-v1/train-proposed.jsonl` has 9,551 kept proposals
   from 10,000 candidates: 3,783 Allow, 5,768 Hold, 449 exclusions, no Block. It has not been
-  merged into the approved release or trained.
+  merged into the approved release.
 - **Synthetic draft:** `.data/block-proposals-reviewed-v1/train-proposed.jsonl` has 39
   model-reviewed rows: 21 Block, 12 Hold, 6 Allow. `train-with-expansion-proposed.jsonl`
   combines these with the expansion (9,590 rows), with mixed review coverage.
+- **Expansion experiments:** `.data/runs/laya-expansion-01`, `-02-ep2` and `-03-ep3` train
+  the encoder for 1/2/3 epochs on the approved train split plus the 9,590 draft rows.
+  Serving validation: 83.3%, 84.5% and 78.2% (selected checkpoint: 75.9%); false Allow
+  drops from 21 to 5 of 73 non-Allow rows. No run predicts Block. These are experimental
+  checkpoints trained mostly on unapproved labels; the selected checkpoint is unchanged.
 - **Review pages:** `.data/expansion-v1/sample-review.html` is the original 30-row sample;
   `.data/expansion-v1/review-samples/sample-02/review.html` has eight each of Allow, Hold,
   Block and rejected. The second sample is stratified after labeling, not a prevalence
@@ -89,6 +94,13 @@ all three classes in each split. Disputes and malformed shell text remain exclud
 
 # New run: same approved pilot, one epoch, with encoder updates.
 .venv/bin/python -I dataset/finetune.py --out .data/runs/laya-next --train-encoder --run
+
+# Experimental: append unapproved draft rows to train only. Validation/gold stay approved,
+# and draft rows sharing a family, unit, pair or state with them are rejected.
+.venv/bin/python -I dataset/finetune.py --out .data/runs/laya-expansion-next --train-encoder --run \
+  --extra-train .data/block-proposals-reviewed-v1/train-with-expansion-proposed.jsonl \
+  --extra-candidates .data/expansion-v1/candidates.jsonl \
+  --extra-candidates .data/block-proposals-reviewed-v1/candidates.jsonl
 
 # Default split is validation. Choose an empty output directory.
 .venv/bin/python -I dataset/evaluate.py \

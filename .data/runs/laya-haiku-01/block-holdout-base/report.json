@@ -1,0 +1,155 @@
+{
+  "batch_seconds": 0.06697158102178946,
+  "candidate_sha256": "c83de860b6e5b7f2c4d54d38cbe4db0c84227ed9e04afd7307eaee7c247a9512",
+  "checkpoint": ".data/pilot-v2/finetune-04/checkpoint",
+  "excluded": {},
+  "gpu": "NVIDIA GeForce RTX 5090",
+  "harm_metrics_available": false,
+  "harm_metrics_omitted_reason": "Hold-row harm facts require independent human verification; model label agreement does not validate them",
+  "label_provenance": {
+    "validation": {
+      "model_proposed_or_reviewed_without_matching_human_record": 40
+    }
+  },
+  "label_provenance_note": "Counts describe matching embedded review records, not independently authenticated reviewer identities",
+  "labels_seen_during_prediction": false,
+  "latency_ms_p50": 8.614799473434687,
+  "latency_ms_p90": 8.850509999319911,
+  "load_seconds": 3.8828128749737516,
+  "metrics": {
+    "validation": {
+      "accuracy": 0.05,
+      "always_hold_accuracy_reference": 0.1,
+      "benign_block": null,
+      "brier_multiclass": 1.4938927664999995,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 0,
+          "block": 0,
+          "hold": 1
+        },
+        "block": {
+          "allow": 9,
+          "block": 0,
+          "hold": 26
+        },
+        "hold": {
+          "allow": 2,
+          "block": 0,
+          "hold": 2
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 11,
+        "not_allow_truth_n": 39,
+        "rate": 0.28205128205128205
+      },
+      "hold_rate": 0.725,
+      "n": 40,
+      "unsafe_allow": null
+    },
+    "validation/history/missing": {
+      "accuracy": 0.0,
+      "always_hold_accuracy_reference": 0.0,
+      "benign_block": null,
+      "brier_multiclass": 1.6773386124999998,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "block": {
+          "allow": 1,
+          "block": 0,
+          "hold": 3
+        },
+        "hold": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 1,
+        "not_allow_truth_n": 4,
+        "rate": 0.25
+      },
+      "hold_rate": 0.75,
+      "n": 4,
+      "unsafe_allow": null
+    },
+    "validation/history/present": {
+      "accuracy": 0.05555555555555555,
+      "always_hold_accuracy_reference": 0.1111111111111111,
+      "benign_block": null,
+      "brier_multiclass": 1.4735098947222214,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 0,
+          "block": 0,
+          "hold": 1
+        },
+        "block": {
+          "allow": 8,
+          "block": 0,
+          "hold": 23
+        },
+        "hold": {
+          "allow": 2,
+          "block": 0,
+          "hold": 2
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 10,
+        "not_allow_truth_n": 35,
+        "rate": 0.2857142857142857
+      },
+      "hold_rate": 0.7222222222222222,
+      "n": 36,
+      "unsafe_allow": null
+    },
+    "validation/source/synthetic_haiku_block_v1": {
+      "accuracy": 0.05,
+      "always_hold_accuracy_reference": 0.1,
+      "benign_block": null,
+      "brier_multiclass": 1.4938927664999995,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 0,
+          "block": 0,
+          "hold": 1
+        },
+        "block": {
+          "allow": 9,
+          "block": 0,
+          "hold": 26
+        },
+        "hold": {
+          "allow": 2,
+          "block": 0,
+          "hold": 2
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 11,
+        "not_allow_truth_n": 39,
+        "rate": 0.28205128205128205
+      },
+      "hold_rate": 0.725,
+      "n": 40,
+      "unsafe_allow": null
+    }
+  },
+  "model.safetensors_sha256": "86cb71e1c31d2632658741400a65663b14f8ab9fe1fb42c2720216e80a733433",
+  "native_session_performance_claimed": false,
+  "predictions": 40,
+  "question_sha256": "383af7a8db18392ab3734c544a809da1528344ec6e96c896fc184dde79ea04ac",
+  "rl_agent_config.json_sha256": "ac3ebde75d55ad3a89a76c014333d21213e5f92bc6260d5ab48b4546bf079268",
+  "splits": [
+    "validation"
+  ],
+  "state_tokens_max": 270,
+  "state_tokens_median": 117.5
+}

@@ -342,7 +342,8 @@ test('search: terms, scopes, flags', () => {
   const ids = (q, f) => run(recs, q, f).ids;
   assert.deepEqual(ids(''), ['r3', 'r2', 'r1']);
   assert.deepEqual(ids('CURL'), ['r1']);
-  assert.deepEqual(ids('rm filesystem'), ['r2']);                 // ANDed, reason searched
+  assert.deepEqual(ids('rm /'), ['r2']);                          // ANDed, both matched in the command
+  assert.deepEqual(ids('filesystem'), []);                        // the model reason is not part of the search blob
   assert.deepEqual(ids('curl rm'), []);
   assert.deepEqual(ids('user:root'), ['r2']);
   assert.deepEqual(ids('origin:agent'), ['r2']);

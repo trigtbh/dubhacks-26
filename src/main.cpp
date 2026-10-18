@@ -348,6 +348,7 @@ void handle(int ffd, int efd, uint32_t tid)
 			ev.verdict = verdict_name(d.verdict);
 			ev.decided_by = d.decided_by;
 			ev.reason = d.reason;
+			ev.model_json = d.model_json;
 			ev.attack_id = d.attack_id;
 			ev.has_score = d.has_score;
 			ev.score = d.score;
@@ -492,6 +493,7 @@ void handle_seccomp(int nfd, const seccomp_notif &req)
 		ev.verdict = verdict_name(d.verdict);
 		ev.decided_by = d.decided_by;
 		ev.reason = d.reason;
+		ev.model_json = d.model_json;
 		ev.attack_id = d.attack_id;
 		ev.has_score = d.has_score;
 		ev.score = d.score;
@@ -656,11 +658,12 @@ void extend_deadline(std::chrono::milliseconds from_now)
 	t_pending->deadline = std::max(t_pending->deadline, Clock::now() + from_now);
 }
 
-void emit_hold(const Event &ev)
+void emit_hold(const Event &ev, const std::string &model_json)
 {
 	Event h = ev;  // a provisional "hold" line; the final decision line (same id) settles it
 	h.verdict = "hold";
 	h.decided_by = "model";
+	h.model_json = model_json;  // keep the probabilities on the pending line too
 	if (h.reason.empty())
 		h.reason = "held for review";
 	emit(h);

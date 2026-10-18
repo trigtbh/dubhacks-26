@@ -19,4 +19,4 @@ void extend_deadline(std::chrono::milliseconds from_now);
 // Write a "hold" event line to the event log now, so the dashboard shows the
 // pending command before decide() blocks waiting for a person. The later final
 // line (same id) settles it. Defined by the daemon.
-void emit_hold(const Event &ev);
+void emit_hold(const Event &ev, const std::string &model_json = "");

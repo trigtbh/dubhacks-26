@@ -66,12 +66,20 @@ Decision decide(const Event &ev)
 		return d;
 	}
 	JevResult j = read_jev_output(jev_classify(ev));
+	// The model's {choice, probabilities}, kept on every event (hold, allow, block and the
+	// settled line) so the dashboard always shows the probabilities for a model decision.
+	std::string model = j.has_probabilities ? jev_json(j) : "";
 	// A certain verdict resolves now, with the same consequence a human review
 	// reaches: allow runs the command, block blocks it and severs the origin.
-	if (j.choice != JevChoice::Hold)
-		return decide_certain(ev, j, enforce_denial);
+	if (j.choice != JevChoice::Hold) {
+		Decision d = decide_certain(ev, j, enforce_denial);
+		d.model_json = model;
+		return d;
+	}
 	// Unsure: surface the pending command to the dashboard, then simulate and ask a person.
-	emit_hold(ev);
+	emit_hold(ev, model);
 	auto ttl = std::chrono::milliseconds((long)(atof(env("SID_REVIEW_TIMEOUT", "120").c_str()) * 1000));
-	return handle_unsure(ev, j, reviews(), run_explore, ttl, extend_deadline, enforce_denial);
+	Decision d = handle_unsure(ev, j, reviews(), run_explore, ttl, extend_deadline, enforce_denial);
+	d.model_json = model;
+	return d;
 }

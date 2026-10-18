@@ -263,7 +263,12 @@ export function parts(ctx, ev) {
     hist: lc(ctx.history.join('\n')),
     reason: lc(reason),
   };
-  p.hay = [p.cmd, p.prog, p.origin, p.user, p.groups, p.cwd, lc(ctx.files.map((f) => f.op + ' ' + f.path).join('\n')), p.hist, p.reason].join('\n');
+  // The plain-term haystack is the visible identity only: command, program, origin, user,
+  // groups, cwd and touched paths. It deliberately excludes the recent-command history and
+  // the model's reason JSON -- those would make a term match a command it isn't part of (e.g.
+  // "vim" matching "rm public.txt" because vim was a prior command), and the reason JSON
+  // contains every verdict word, so it would make "allow"/"hold"/"block" match everything.
+  p.hay = [p.cmd, p.prog, p.origin, p.user, p.groups, p.cwd, lc(ctx.files.map((f) => f.op + ' ' + f.path).join('\n'))].join('\n');
   return p;
 }
 

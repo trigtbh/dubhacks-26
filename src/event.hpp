@@ -44,6 +44,8 @@ struct Event {
 
 	// filled by decide()
 	std::string verdict, decided_by, reason, attack_id;
+	std::string model_json;  // the model's {choice, probabilities} JSON, kept on every event so
+				 // the dashboard can always show the probabilities; empty when no model ran
 	bool has_score = false;
 	double score = 0;
 	bool explored = false;
@@ -64,6 +66,7 @@ enum class Verdict { Allow, Hold, Block };
 struct Decision {
 	Verdict verdict = Verdict::Allow;
 	std::string decided_by, reason, attack_id;
+	std::string model_json;  // the model's {choice, probabilities} JSON, carried onto the event
 	bool has_score = false;
 	double score = 0;
 	bool explored = false;

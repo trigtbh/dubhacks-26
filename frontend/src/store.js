@@ -54,6 +54,20 @@ export function parseModel(m) {
   return { choice: c, probabilities: { allow: a / sum, hold: h / sum, block: b / sum } };
 }
 
+// The model's {choice, probabilities} for an event. The daemon does not send a separate `model`
+// field; for a model decision (allow/hold/block) the reason IS that JSON, so parse it from there.
+// This keeps the probabilities visible for every model decision, not just reviewed holds.
+export function modelOf(ev) {
+  if (!ev || typeof ev !== 'object') return null;
+  const m = parseModel(ev.model);
+  if (m) return m;
+  const r = ev.reason;
+  if (typeof r === 'string' && r.trim().charCodeAt(0) === 123 /* { */) {
+    try { return parseModel(JSON.parse(r)); } catch { return null; }
+  }
+  return null;
+}
+
 const newQ = () => ({
   start: null,          // {duration_ms, ends_at, t, limits}
   endsAt: null,         // epoch ms of the countdown's end, in the daemon's time
@@ -191,7 +205,7 @@ export function createStore(opts = {}) {
       time: toMs(o.time) ?? s.now(),
       verdict: o.verdict,
       ev: o,
-      model: parseModel(o.model),
+      model: modelOf(o),
       ctx,
       hay: hp.hay,
       hp,

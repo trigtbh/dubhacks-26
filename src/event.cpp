@@ -103,6 +103,7 @@ std::string Event::to_json() const
 	j.str("verdict", verdict);
 	j.str("decided_by", decided_by);
 	j.str("reason", reason);
+	j.raw("model", model_json.empty() ? "null" : model_json);
 	j.raw("score", has_score ? num(score) : "null");
 	j.raw("explored", explored ? "true" : "false");
 	j.raw("effects", effects.empty() ? "null" : effects);

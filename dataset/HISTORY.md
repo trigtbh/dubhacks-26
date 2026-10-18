@@ -40,6 +40,14 @@ run on validation only, before gold scoring. Reports, progress, logs and serving
 for all five runs remain. Only run 04's checkpoint is retained. Gold reports for the fixed
 selected and base models remain under that run.
 
+Three expansion runs (`.data/runs/laya-expansion-*`) added the 9,590 draft rows to the
+approved train split via `finetune.py --extra-train`, training the encoder for 1, 2 and 3
+epochs. Serving validation accuracy was 83.3%, 84.5% and 78.2%, with Brier 0.271, 0.287 and
+0.420; each allowed 5 of 73 non-Allow rows. Three epochs overfit (final loss 0.03). None
+predicted Block: one epoch allowed 2 of the 6 synthetic Block rows and held 4; two and three
+epochs held all 6. Atomic Red Team rows stayed at 66-69%. The conclusion was that data, not
+training length, limits further gains, especially varied Block examples. Gold was not scored.
+
 Early D1/D3/Laya latency comparison JSON is retained under `.data/bench/legacy/`. The
 unused D1/D3 downloads and their benchmark adapters were removed. `bench/latency.py` now
 benchmarks local Laya checkpoints using the shared verdict question.

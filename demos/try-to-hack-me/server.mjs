@@ -17,7 +17,6 @@ const sessions = new Map();
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  if (!localRequest(req, res)) return;
 
   if (url.pathname === '/dashboard') {
     res.writeHead(308, { ...headers, Location: '/dashboard/' });
@@ -50,7 +49,7 @@ const shells = new WebSocketServer({ noServer: true, maxPayload: 65_536, perMess
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const id = url.searchParams.get('session');
-  if (!localRequest(req, null, true) || url.pathname !== '/shell' || !validId(id)) return socket.destroy();
+  if (url.pathname !== '/shell' || !validId(id)) return socket.destroy();
 
   let session = sessions.get(id);
   if (!session) {
@@ -191,20 +190,6 @@ function proxyDashboard(req, res, url) {
   req.pipe(upstream);
 }
 
-function localRequest(req, res, socket = false) {
-  const host = req.headers.host || '';
-  const origin = req.headers.origin;
-  if (!allowedHosts.has(host) || (origin && (() => {
-    try { const u = new URL(origin); return !['http:', 'https:'].includes(u.protocol) || u.host !== host; }
-    catch { return true; }
-  })())) {
-    if (socket) return false;
-    send(res, 403, 'Local demo only');
-    return false;
-  }
-  return true;
-}
-
 function validId(id) { return typeof id === 'string' && /^[\da-f-]{36}$/i.test(id); }
 function validTerminalSize(value, min, max) { return Number.isInteger(value) && value >= min && value <= max; }
 function terminalSize(value, min, max, fallback) {
@@ -220,15 +205,10 @@ function mime(ext) {
   return ({ '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' })[ext] || 'application/octet-stream';
 }
 
-// SID_DEMO_HOSTS: extra Host values (comma-separated, with port if non-default) when served beyond localhost.
-const allowedHosts = new Set([`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`,
-  ...(process.env.SID_DEMO_HOSTS || '').split(',').map((h) => h.trim()).filter(Boolean)]);
-const wsSources = [...allowedHosts].flatMap((h) => [`ws://${h}`, `wss://${h}`]).join(' ');
-
 const headers = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
-  'Content-Security-Policy': `default-src 'self'; frame-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ${wsSources}; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`,
+  'Content-Security-Policy': `default-src 'self'; frame-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`,
 };
 
 process.on('SIGTERM', () => {

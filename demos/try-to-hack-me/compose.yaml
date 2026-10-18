@@ -5,7 +5,6 @@ services:
       dockerfile: demos/try-to-hack-me/Dockerfile
     environment:
       PORT: "4174"
-      SID_DEMO_HOSTS: ${SID_DEMO_HOSTS:-}
       SHELL_LAB_CONTAINER: "1"
       SID_DEMO_ALLOW_SHELL_BOOTSTRAP: "1"
       SID_DEMO_COMMAND_ONLY: "1"

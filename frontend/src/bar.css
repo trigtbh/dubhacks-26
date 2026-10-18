@@ -1,13 +1,15 @@
 /* The top bar. */
 .bx { display: flex; align-items: center; gap: var(--space-4); min-height: 48px; animation: bar-in .42s cubic-bezier(.2, .8, .2, 1) both; }
-.bx-word { margin: 0; font-size: 36px; line-height: 1; transition: letter-spacing .3s cubic-bezier(.2, .8, .2, 1); }
-.bx-word:hover { letter-spacing: .04em; }
+.bx-brand { display: flex; align-items: center; gap: var(--space-2); flex: 0 0 auto; min-width: 0; }
+.bx-mark { display: block; width: 40px; height: 40px; flex: none; object-fit: contain; }
+.bx-word { margin: 0; font-size: 36px; line-height: 1; }
 .bx-search { --cut: 12px; --edge: var(--line-strong); --fill: var(--surface); flex: 1 1 auto; min-width: 0; display: flex; align-items: center; height: 44px; padding: 0 var(--space-4); transition: filter .28s; }
 .bx-search:focus-within { --edge: var(--ink); filter: brightness(1.08); }
 .bx-search input {
   flex: 1; min-width: 0; border: 0; padding: 0; background: transparent; outline: none;
   color: var(--ink); font: 400 15px/22px var(--font-sans);
 }
+.bx-search input:focus-visible { outline: none; box-shadow: none; }
 .bx-search input::placeholder { color: var(--ink-muted); opacity: 1; }
 .bx-search input::-webkit-search-cancel-button { display: none; }
 
@@ -21,6 +23,7 @@
 @keyframes bar-in { from { opacity: 0; } to { opacity: 1; } }
 @media (max-width: 759px) {
   .bx { gap: var(--space-2); }
+  .bx-mark { width: 34px; height: 34px; }
   .bx-word { font-size: 30px; }
   #bar[data-view="stage"] .bx-back { display: inline-flex; }
   #bar[data-view="stage"] .bx-search { display: none; }

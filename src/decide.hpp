@@ -12,3 +12,9 @@ Decision decide(const Event &ev);
 // Called once at startup, before the capture goes live: load honeytokens, the
 // tiny classifier and Laya here.
 void decide_init();
+
+// Push the calling handler's answer deadline out (the daemon otherwise denies
+// after SID_DECIDE_TIMEOUT). For decisions that wait on a simulation or a person.
+// Defined by the daemon; a no-op outside a decide() call.
+#include <chrono>
+void extend_deadline(std::chrono::milliseconds from_now);

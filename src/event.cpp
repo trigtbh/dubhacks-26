@@ -105,7 +105,7 @@ std::string Event::to_json() const
 	j.str("reason", reason);
 	j.raw("score", has_score ? num(score) : "null");
 	j.raw("explored", explored ? "true" : "false");
-	j.raw("effects", "[]");
+	j.raw("effects", effects.empty() ? "null" : effects);
 	j.raw("score_after", "null");
 	if (!attack_id.empty()) j.str("attack_id", attack_id);
 	j.raw("latency_ms", num(latency_ms));

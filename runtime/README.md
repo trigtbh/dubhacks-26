@@ -27,18 +27,21 @@ The check binary prints the model verdict without installing capture or executin
 arguments. `make check PYTHON=.venv/bin/python` covers transport failures, concurrency,
 rendering and the existing review flow using CPU-only fixtures.
 
-For the earlier experimental test checkpoint, fetch its LFS weights and select it
-explicitly when creating the sandbox:
+`./sandbox.sh` and its dashboard use the latest demo fine-tune,
+`.data/runs/laya-demo-test-01/checkpoint`, by default. Fetch its LFS weights first;
+set `SID_LAYA_CHECKPOINT` to an absolute directory to use another checkpoint:
 
 ```sh
 git lfs pull --include=".data/runs/laya-demo-test-01/checkpoint/model.safetensors"
-SID_LAYA_CHECKPOINT="$PWD/.data/runs/laya-demo-test-01/checkpoint" ./sandbox.sh
+./sandbox.sh
+SID_LAYA_CHECKPOINT="$PWD/.data/pilot-v2/finetune-04/checkpoint" ./sandbox.sh
 ```
 
-The sandbox mounts its checkpoint when the container is created. An existing container
-keeps its old mount and installed binary; changing the variable does not reload it.
-`./sandbox.sh --build` rebuilds the image and recreates the container when a switch is
-needed. The demo policy lives in training examples; the inference worker has no new
+The sandbox mounts its checkpoint when the container is created. When a running
+container has a different checkpoint mounted, `./sandbox.sh` recreates it with the
+selected one (except under Git Bash on Windows, where `./sandbox.sh --build` is needed).
+The daemon outside the sandbox still defaults to the selected `finetune-04` checkpoint.
+The demo policy lives in training examples; the inference worker has no new
 command-specific overrides.
 
 This candidate passes the reported command groups but still fails two demo contexts

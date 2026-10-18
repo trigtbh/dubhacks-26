@@ -11,7 +11,8 @@
 # arm64 architecture. SSH session commands are gated by seccomp notifications.
 #
 # Env overrides: SSH_PORT (2222), DASHBOARD_PORT (8080; both fall back to free ports if taken), SANDBOX_MEMORY (8g), SANDBOX_CPUS (4).
-# SID_LAYA_CHECKPOINT selects a local checkpoint to mount read-only for inference.
+# SID_LAYA_CHECKPOINT selects a local checkpoint to mount read-only for inference
+# (default: the latest demo fine-tune, .data/runs/laya-demo-test-01/checkpoint).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -95,21 +96,25 @@ fi
 
 (( rebuild )) && dk rm -f "$NAME" >/dev/null 2>&1 || true
 
-run_container() {  # $1, $2: host side of the ssh and dashboard port mappings
-    local checkpoint="${SID_LAYA_CHECKPOINT:-$ROOT/.data/pilot-v2/finetune-04/checkpoint}"
-    local model_mount=()
-    if [[ -d "$checkpoint" ]]; then
-        # The repository's .data is often a symlink outside the workspace mount.
-        checkpoint="$(cd "$checkpoint" && pwd -P)"
-        if [[ -f "$checkpoint/model.safetensors" ]] &&
-            head -c 100 "$checkpoint/model.safetensors" | grep -aFxq 'version https://git-lfs.github.com/spec/v1'; then
-            echo "sid: checkpoint weights are a Git LFS pointer; the dashboard will still start, but capture needs 'git lfs pull --include=.data/pilot-v2/finetune-04/checkpoint/model.safetensors'" >&2
-        fi
-        command -v cygpath >/dev/null 2>&1 && checkpoint="$(cygpath -m "$checkpoint")"
-        model_mount=(-v "$checkpoint:/opt/sid-checkpoint:ro" -e SID_LAYA_CHECKPOINT=/opt/sid-checkpoint)
-    else
-        echo "sid: no checkpoint at $checkpoint; model startup will fail until one is supplied" >&2
+# The checkpoint is resolved once so a running container with another mount is recreated.
+checkpoint="${SID_LAYA_CHECKPOINT:-$ROOT/.data/runs/laya-demo-test-01/checkpoint}"
+model_mount=()
+if [[ -d "$checkpoint" ]]; then
+    lfs_path="${checkpoint#"$ROOT"/}/model.safetensors"
+    # The repository's .data is often a symlink outside the workspace mount.
+    checkpoint="$(cd "$checkpoint" && pwd -P)"
+    if [[ -f "$checkpoint/model.safetensors" ]] &&
+        head -c 100 "$checkpoint/model.safetensors" | grep -aFxq 'version https://git-lfs.github.com/spec/v1'; then
+        echo "sid: checkpoint weights are a Git LFS pointer; the dashboard will still start, but capture needs 'git lfs pull --include=$lfs_path'" >&2
     fi
+    command -v cygpath >/dev/null 2>&1 && checkpoint="$(cygpath -m "$checkpoint")"
+    model_mount=(-v "$checkpoint:/opt/sid-checkpoint:ro" -e SID_LAYA_CHECKPOINT=/opt/sid-checkpoint)
+    echo "sid: model checkpoint $checkpoint" >&2
+else
+    echo "sid: no checkpoint at $checkpoint; model startup will fail until one is supplied" >&2
+fi
+
+run_container() {  # $1, $2: host side of the ssh and dashboard port mappings
     # --privileged keeps the development sandbox's nested system tooling usable.
     # sid-session traces only commands launched by SSH sessions in this container.
     dk run -d \
@@ -128,6 +133,14 @@ run_container() {  # $1, $2: host side of the ssh and dashboard port mappings
         -v sid-sandbox-cache:/home/$DEV_USER/.cache \
         "$IMAGE" 2>&1
 }
+
+# Docker Desktop on Windows reports mount sources in its own form, so only compare elsewhere.
+if ((${#model_mount[@]})) && ! command -v cygpath >/dev/null 2>&1 &&
+    mounted="$(dk inspect -f '{{range .Mounts}}{{if eq .Destination "/opt/sid-checkpoint"}}{{.Source}}{{end}}{{end}}' "$NAME" 2>/dev/null)" &&
+    [[ "$mounted" != "$checkpoint" ]]; then
+    echo "sid: recreating $NAME to mount ${checkpoint} (was ${mounted:-none})" >&2
+    dk rm -f "$NAME" >/dev/null 2>&1 || true
+fi
 
 if [[ "$(dk inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != true ]]; then
     dk rm -f "$NAME" >/dev/null 2>&1 || true

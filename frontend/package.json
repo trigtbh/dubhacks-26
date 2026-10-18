@@ -1,0 +1,26 @@
+{
+  "name": "sid-dashboard",
+  "private": true,
+  "type": "module",
+  "description": "Local dashboard for sid. Built with esbuild into plain html, css and js in dist/.",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:dev": "node build.mjs --dev",
+    "test": "node --test test/",
+    "sim": "node sim/sim.mjs"
+  },
+  "devDependencies": {
+    "@fontsource/commit-mono": "5.2.4",
+    "@fontsource/syne": "5.0.19",
+    "@fontsource/tasa-explorer": "5.2.1",
+    "@react-spring/three": "9.7.5",
+    "@react-three/fiber": "8.17.10",
+    "@shadergradient/react": "2.4.20",
+    "camera-controls": "2.9.0",
+    "esbuild": "0.24.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "three": "0.169.0",
+    "three-stdlib": "2.33.0"
+  }
+}

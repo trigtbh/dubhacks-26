@@ -1,0 +1,27 @@
+[Unit]
+Description=sid dashboard (local web server)
+After=local-fs.target
+
+[Service]
+ExecStart=/usr/local/bin/sid-web
+Environment=SID_WEB_ROOT=/usr/local/share/sid/web
+Environment=SID_DECISION_LOG=/var/log/sid/decisions.jsonl
+Restart=always
+RestartSec=1
+# It reads the event log, appends a person's decisions to the decision file, and answers on a
+# local port, so it gets no privileges. The decision file is the one thing it may write; it
+# must already exist and be writable by this user (sid-daemon truncates it in place, so keep
+# it a regular file at this path, never replace it).
+User=nobody
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ReadWritePaths=-/var/log/sid/decisions.jsonl
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_INET
+MemoryMax=64M
+
+[Install]
+WantedBy=multi-user.target

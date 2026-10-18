@@ -1,0 +1,68 @@
+/* Crystal, generated from tokens.json */
+@font-face { font-family: "Syne"; src: url("fonts/Syne-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "TASA Explorer"; src: url("fonts/TASAExplorer-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "TASA Explorer"; src: url("fonts/TASAExplorer-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "TASA Explorer"; src: url("fonts/TASAExplorer-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Commit Mono"; src: url("fonts/CommitMono-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Commit Mono"; src: url("fonts/CommitMono-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+:root, [data-theme="night"] {
+  --ground: #111315;
+  --surface: #1b1e21;
+  --surface-raised: #272b30;
+  --line: #34383e;
+  --line-strong: #777b83;
+  --ink: #e6e3dc;
+  --ink-muted: #aaa79f;
+  --allow-ink: #8a877f;
+  --lattice: #3a3d43;
+  --rose: #e0457b;
+  --on-rose: #0e0f10;
+  --rose-ink: #ea6a96;
+  --teal: #3fbfae;
+  --on-teal: #0e0f10;
+  --teal-ink: #3fbfae;
+  --focus: #3fbfae;
+  --sg-rose: #9e1f4c;
+  --sg-teal: #17736a;
+  --sg-shadow: #0e0f10;
+}
+[data-theme="paper"] {
+  --ground: #f2f0ea;
+  --surface: #ffffff;
+  --surface-raised: #e7e4dc;
+  --line: #d8d4cb;
+  --line-strong: #76726a;
+  --ink: #141414;
+  --ink-muted: #5a5751;
+  --allow-ink: #5a5751;
+  --lattice: #c9c4b9;
+  --rose: #b8285a;
+  --on-rose: #ffffff;
+  --rose-ink: #b8285a;
+  --teal: #17736a;
+  --on-teal: #ffffff;
+  --teal-ink: #146a61;
+  --focus: #0d0d0e;
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-10: 40px;
+  --radius-0: 0;
+  --radius-sm: 2px;
+  --cut-sm: 6px;
+  --cut-md: 14px;
+  --font-display: "Syne", "Arial Black", sans-serif;
+  --font-sans: "TASA Explorer", system-ui, sans-serif;
+  --font-mono: "Commit Mono", ui-monospace, monospace;
+}
+.wordmark { font-family: var(--font-display); font-size: 56px; line-height: 0.95; font-weight: 600; letter-spacing: -0.01em; }
+.panel-title { font-family: var(--font-display); font-size: 20px; line-height: 24px; font-weight: 600; }
+.body { font-family: var(--font-sans); font-size: 15px; line-height: 22px; font-weight: 400; }
+.label { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 600; }
+.verdict { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.04em; }
+.argv { font-family: var(--font-mono); font-size: 13px; line-height: 20px; font-weight: 500; }
+.meta { font-family: var(--font-mono); font-size: 12px; line-height: 16px; font-weight: 400; }

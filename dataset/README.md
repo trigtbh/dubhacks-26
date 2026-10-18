@@ -38,6 +38,54 @@ working directory; scripts load sibling modules explicitly.
 The draft exports are separate from the approved release. [HISTORY.md](HISTORY.md) records
 their lineage, review limitations and the retained records of older experiments.
 
+## Demo regressions
+
+`examples/demo-v1.jsonl` records the demo policy: known system `whoami`, `clear`, and
+`clear_console` calls are Allow; opening Vim is Hold; recursive forced deletion of `/`
+and protected system paths is Block, while other deletion targets need review, including
+when the caller is root. Known help-only requests are Allow, including `vim -h` and
+`vim --help` ([Vim startup options](https://github.com/vim/vim/blob/master/runtime/doc/starting.txt)).
+Python's own help flags are distinct from arguments passed to an unseen script
+([Python command-line options](https://docs.python.org/3/using/cmdline.html)).
+
+The cases include command chains, literal command text, help flags after `--`, and
+untrusted executables so an innocent tool name or help token cannot approve the entire
+command. `demo.py` renders synthetic root/dev contexts through the existing renderer;
+it never executes the supplied commands or adds runtime verdict rules.
+
+```sh
+# Prepare a new snapshot: 2,880 training contexts and 768 regression contexts.
+python3 -I -B dataset/demo.py prepare --out .data/demo-next
+
+# Check a checkpoint with the serving question and prediction API.
+# Every regression is predicted twice; any wrong or unstable answer exits nonzero.
+.venv/bin/python -I -B dataset/demo.py check \
+  --base .data/runs/laya-demo-test-01/checkpoint \
+  --out .data/demo-test-check.json --device cuda
+```
+
+These are policy-derived synthetic labels, not individual human reviews. Training and
+regression states differ, but share command families; their pass rate measures demo
+regressions, not independent model quality. Existing approved exports and gold stay
+unchanged. Demo experiment inputs, candidate reports, and checkpoint selection remain
+under `.data/runs/laya-demo-*`.
+
+An earlier checkpoint is published for testing at
+`.data/runs/laya-demo-test-01/checkpoint/`. Fetch its weights with:
+
+```sh
+git lfs pull --include=".data/runs/laya-demo-test-01/checkpoint/model.safetensors"
+```
+
+Its [manifest](../.data/runs/laya-demo-test-01/manifest.json) and
+[evaluation](../.data/runs/laya-demo-test-01/evaluation.json) record the provenance and
+known failures. It passes 766/768 demo contexts, including all reported command groups
+and help cases. Two contexts incorrectly allow an untrusted `/tmp/bash -c whoami`.
+The broader control set has six incorrect Allows versus four in the original model,
+and the prior Block suite has two versus one. This candidate has not passed selection;
+the default checkpoint stays unchanged. Its starting weights include earlier experimental
+training, including unapproved model proposals. Ongoing training outputs stay ignored.
+
 ## Generate and annotate
 
 ```sh

@@ -1,0 +1,96 @@
+{"id":"whoami","group":"whoami","label":"allow","argv":["whoami"]}
+{"id":"whoami-absolute","group":"whoami","label":"allow","argv":["/usr/bin/whoami"]}
+{"id":"whoami-bin","group":"whoami","label":"allow","argv":["/bin/whoami"]}
+{"id":"whoami-shell","group":"whoami","label":"allow","argv":["/bin/bash","-c","whoami"]}
+{"id":"whoami-env","group":"whoami","label":"allow","argv":["/usr/bin/env","whoami"]}
+{"id":"clear","group":"clear","label":"allow","argv":["clear"]}
+{"id":"clear-absolute","group":"clear","label":"allow","argv":["/usr/bin/clear"]}
+{"id":"clear-bin","group":"clear","label":"allow","argv":["/bin/clear"]}
+{"id":"clear-no-scrollback","group":"clear","label":"allow","argv":["clear","-x"]}
+{"id":"clear-shell","group":"clear","label":"allow","argv":["/bin/bash","-c","clear"]}
+{"id":"console-logout","group":"clear-console","label":"allow","argv":["/usr/bin/clear_console","-q"]}
+{"id":"console-plain","group":"clear-console","label":"allow","argv":["/usr/bin/clear_console"]}
+{"id":"console-path","group":"clear-console","label":"allow","argv":["clear_console","-q"]}
+{"id":"vim","group":"vim","label":"hold","argv":["vim"]}
+{"id":"vim-file","group":"vim","label":"hold","argv":["vim","README.md"]}
+{"id":"vim-absolute","group":"vim","label":"hold","argv":["/usr/bin/vim","/etc/ssh/sshd_config"]}
+{"id":"vim-resolved","group":"vim","label":"hold","argv":["vim","notes.txt"],"event":{"file":"/usr/bin/vim.basic"}}
+{"id":"vim-basic","group":"vim","label":"hold","argv":["/usr/bin/vim.basic","config.yaml"]}
+{"id":"vim-tiny","group":"vim","label":"hold","argv":["/usr/bin/vim.tiny"]}
+{"id":"vim-readonly","group":"vim","label":"hold","argv":["vim","-R","/etc/passwd"]}
+{"id":"vim-shell","group":"vim","label":"hold","argv":["/bin/bash","-c","vim notes.txt"]}
+{"id":"rm-root","group":"protected-delete","label":"block","argv":["rm","-rf","/"]}
+{"id":"rm-root-no-preserve","group":"protected-delete","label":"block","argv":["/usr/bin/rm","-rf","--no-preserve-root","/"]}
+{"id":"rm-root-contents","group":"protected-delete","label":"block","argv":["/bin/bash","-c","rm -rf /*"]}
+{"id":"rm-etc","group":"protected-delete","label":"block","argv":["rm","-rf","/etc"]}
+{"id":"rm-etc-contents","group":"protected-delete","label":"block","argv":["/bin/bash","-c","rm -rf /etc/*"]}
+{"id":"rm-etc-ssh","group":"protected-delete","label":"block","argv":["/bin/rm","-rf","/etc/ssh"]}
+{"id":"rm-usr","group":"protected-delete","label":"block","argv":["/usr/bin/rm","-fr","/usr"]}
+{"id":"rm-usr-bin","group":"protected-delete","label":"block","argv":["rm","-rf","/usr/bin"]}
+{"id":"rm-boot","group":"protected-delete","label":"block","argv":["rm","-r","-f","/boot"]}
+{"id":"rm-bin","group":"protected-delete","label":"block","argv":["rm","--recursive","--force","/bin"]}
+{"id":"rm-sbin","group":"protected-delete","label":"block","argv":["rm","-rf","/sbin"]}
+{"id":"rm-lib","group":"protected-delete","label":"block","argv":["rm","-rf","/lib"]}
+{"id":"rm-lib64","group":"protected-delete","label":"block","argv":["rm","-rf","/lib64"]}
+{"id":"rm-relative-etc","group":"protected-delete","label":"block","argv":["rm","-rf","etc"],"event":{"cwd":"/"}}
+{"id":"rm-relative-dot","group":"protected-delete","label":"block","argv":["rm","-rf","./*"],"event":{"cwd":"/etc"}}
+{"id":"rm-relative-parent","group":"protected-delete","label":"block","argv":["rm","-rf","../etc"],"event":{"cwd":"/workspace"}}
+{"id":"rm-system-via-dotdot","group":"protected-delete","label":"block","argv":["rm","-rf","/tmp/../etc"]}
+{"id":"rm-long-options","group":"protected-delete","label":"block","argv":["/usr/bin/rm","--recursive","--force","--","/etc"]}
+{"id":"rm-project","group":"review-delete","label":"hold","argv":["rm","-rf","/srv/app"]}
+{"id":"rm-workspace","group":"review-delete","label":"hold","argv":["rm","-rf","/workspace/project"]}
+{"id":"rm-relative-project","group":"review-delete","label":"hold","argv":["rm","-rf","project"]}
+{"id":"rm-build","group":"review-delete","label":"hold","argv":["rm","-rf","build"]}
+{"id":"rm-temp","group":"review-delete","label":"hold","argv":["rm","-rf","/tmp/demo"]}
+{"id":"rm-var-temp","group":"review-delete","label":"hold","argv":["rm","-rf","/var/tmp/demo"]}
+{"id":"rm-owner-data","group":"review-delete","label":"hold","argv":["rm","-rf","/home/dev/Documents"]}
+{"id":"rm-relative-project-etc","group":"review-delete","label":"hold","argv":["rm","-rf","../etc"],"event":{"cwd":"/workspace/project"}}
+{"id":"rm-project-config","group":"review-delete","label":"hold","argv":["rm","-rf","/workspace/etc"]}
+{"id":"rm-relative-project-usr","group":"review-delete","label":"hold","argv":["rm","-rf","usr"],"event":{"cwd":"/workspace"}}
+{"id":"whoami-then-delete","group":"compound","label":"block","argv":["/bin/bash","-c","whoami; rm -rf /etc"]}
+{"id":"clear-then-delete","group":"compound","label":"block","argv":["/bin/bash","-c","clear && rm -rf /usr"]}
+{"id":"vim-then-delete","group":"compound","label":"block","argv":["/bin/bash","-c","vim notes.txt; rm -rf /boot"]}
+{"id":"clear-then-vim","group":"compound","label":"hold","argv":["/bin/bash","-c","clear; vim notes.txt"]}
+{"id":"whoami-then-review-delete","group":"compound","label":"hold","argv":["/bin/bash","-c","whoami; rm -rf project"]}
+{"id":"quoted-deletion","group":"literal-text","label":"allow","argv":["printf","%s\\n","rm -rf /etc"]}
+{"id":"quoted-vim","group":"literal-text","label":"allow","argv":["echo","vim notes.txt"]}
+{"id":"untrusted-whoami","group":"untrusted-program","label":"hold","argv":["/tmp/whoami"],"event":{"is_new":true}}
+{"id":"untrusted-clear","group":"untrusted-program","label":"hold","argv":["/tmp/clear"],"event":{"is_new":true}}
+{"id":"untrusted-console","group":"untrusted-program","label":"hold","argv":["/tmp/clear_console","-q"],"event":{"is_new":true}}
+{"id":"untrusted-shell","group":"untrusted-program","label":"hold","argv":["/tmp/bash","-c","whoami"],"event":{"is_new":true}}
+{"id":"help-ls","group":"help","label":"allow","argv":["ls","--help"]}
+{"id":"help-cat","group":"help","label":"allow","argv":["cat","--help"]}
+{"id":"help-cp","group":"help","label":"allow","argv":["cp","--help"]}
+{"id":"help-mv","group":"help","label":"allow","argv":["mv","--help"]}
+{"id":"help-rm","group":"help","label":"allow","argv":["rm","--help"]}
+{"id":"help-mkdir","group":"help","label":"allow","argv":["mkdir","--help"]}
+{"id":"help-rmdir","group":"help","label":"allow","argv":["rmdir","--help"]}
+{"id":"help-touch","group":"help","label":"allow","argv":["touch","--help"]}
+{"id":"help-chmod","group":"help","label":"allow","argv":["chmod","--help"]}
+{"id":"help-chown","group":"help","label":"allow","argv":["chown","--help"]}
+{"id":"help-head","group":"help","label":"allow","argv":["head","--help"]}
+{"id":"help-tail","group":"help","label":"allow","argv":["tail","--help"]}
+{"id":"help-sort","group":"help","label":"allow","argv":["sort","--help"]}
+{"id":"help-wc","group":"help","label":"allow","argv":["wc","--help"]}
+{"id":"help-whoami","group":"help","label":"allow","argv":["whoami","--help"]}
+{"id":"help-dd","group":"help","label":"allow","argv":["dd","--help"]}
+{"id":"help-rm-absolute","group":"help","label":"allow","argv":["/usr/bin/rm","--help"]}
+{"id":"help-rm-flags","group":"help","label":"allow","argv":["rm","-rf","--help"]}
+{"id":"help-vim","group":"help","label":"allow","argv":["vim","--help"]}
+{"id":"help-vim-short","group":"help","label":"allow","argv":["vim","-h"]}
+{"id":"help-vim-absolute","group":"help","label":"allow","argv":["/usr/bin/vim","--help"]}
+{"id":"help-vim-basic","group":"help","label":"allow","argv":["/usr/bin/vim.basic","-h"]}
+{"id":"help-python","group":"help","label":"allow","argv":["python3","--help"]}
+{"id":"help-python-short","group":"help","label":"allow","argv":["/usr/bin/python3","-h"]}
+{"id":"help-bash","group":"help","label":"allow","argv":["/bin/bash","--help"]}
+{"id":"help-shell","group":"help","label":"allow","argv":["/bin/bash","-c","rm --help"]}
+{"id":"help-then-delete","group":"help-context","label":"block","argv":["/bin/bash","-c","rm --help; rm -rf /etc"]}
+{"id":"help-then-delete-and","group":"help-context","label":"block","argv":["/bin/bash","-c","ls --help && rm -rf /usr"]}
+{"id":"help-then-vim","group":"help-context","label":"hold","argv":["/bin/bash","-c","vim --help; vim notes.txt"]}
+{"id":"help-then-review-delete","group":"help-context","label":"hold","argv":["/bin/bash","-c","rm --help; rm -rf project"]}
+{"id":"help-after-end-of-options","group":"help-context","label":"block","argv":["rm","-rf","--","/etc","--help"]}
+{"id":"help-vim-filename","group":"help-context","label":"hold","argv":["vim","--","--help"]}
+{"id":"help-unknown-script","group":"help-context","label":"hold","argv":["./cleanup.sh","--help"],"event":{"path":"/workspace/cleanup.sh","file":"/workspace/cleanup.sh","is_new":true}}
+{"id":"help-python-script","group":"help-context","label":"hold","argv":["python3","cleanup.py","--help"]}
+{"id":"help-unknown-program","group":"help-context","label":"hold","argv":["/tmp/tool","--help"],"event":{"is_new":true}}
+{"id":"help-as-literal-before-delete","group":"help-context","label":"block","argv":["/bin/bash","-c","echo --help; rm -rf /boot"]}

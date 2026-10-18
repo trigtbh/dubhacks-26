@@ -1,0 +1,310 @@
+{
+  "batch_seconds": 1.0239587429678068,
+  "candidate_sha256": "e1eb3071b954aafc5260b486a59959ad3f0db22fb4d64e0293c56c3f430b617b",
+  "checkpoint": ".data/runs/laya-haiku-01/checkpoint",
+  "excluded": {},
+  "gpu": "NVIDIA GeForce RTX 5090",
+  "harm_metrics_available": false,
+  "harm_metrics_omitted_reason": "Hold-row harm facts require independent human verification; model label agreement does not validate them",
+  "label_provenance": {
+    "validation": {
+      "model_proposed_or_reviewed_without_matching_human_record": 174
+    }
+  },
+  "label_provenance_note": "Counts describe matching embedded review records, not independently authenticated reviewer identities",
+  "labels_seen_during_prediction": false,
+  "latency_ms_p50": 10.799740499351174,
+  "latency_ms_p90": 12.50894699478522,
+  "load_seconds": 3.9506458289688453,
+  "metrics": {
+    "validation": {
+      "accuracy": 0.8390804597701149,
+      "always_hold_accuracy_reference": 0.3850574712643678,
+      "benign_block": null,
+      "brier_multiclass": 0.24802835166666673,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 81,
+          "block": 0,
+          "hold": 20
+        },
+        "block": {
+          "allow": 2,
+          "block": 2,
+          "hold": 2
+        },
+        "hold": {
+          "allow": 2,
+          "block": 2,
+          "hold": 63
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 4,
+        "not_allow_truth_n": 73,
+        "rate": 0.0547945205479452
+      },
+      "hold_rate": 0.4885057471264368,
+      "n": 174,
+      "unsafe_allow": null
+    },
+    "validation/history/missing": {
+      "accuracy": 1.0,
+      "always_hold_accuracy_reference": 0.4444444444444444,
+      "benign_block": null,
+      "brier_multiclass": 0.08001873777777778,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 10,
+          "block": 0,
+          "hold": 0
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "hold": {
+          "allow": 0,
+          "block": 0,
+          "hold": 8
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 0,
+        "not_allow_truth_n": 8,
+        "rate": 0.0
+      },
+      "hold_rate": 0.4444444444444444,
+      "n": 18,
+      "unsafe_allow": null
+    },
+    "validation/history/present": {
+      "accuracy": 0.8205128205128205,
+      "always_hold_accuracy_reference": 0.3782051282051282,
+      "benign_block": null,
+      "brier_multiclass": 0.2674140763461539,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 71,
+          "block": 0,
+          "hold": 20
+        },
+        "block": {
+          "allow": 2,
+          "block": 2,
+          "hold": 2
+        },
+        "hold": {
+          "allow": 2,
+          "block": 2,
+          "hold": 55
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 4,
+        "not_allow_truth_n": 65,
+        "rate": 0.06153846153846154
+      },
+      "hold_rate": 0.4935897435897436,
+      "n": 156,
+      "unsafe_allow": null
+    },
+    "validation/source/art": {
+      "accuracy": 0.84375,
+      "always_hold_accuracy_reference": 0.4375,
+      "benign_block": null,
+      "brier_multiclass": 0.220958156875,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 15,
+          "block": 0,
+          "hold": 3
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "hold": {
+          "allow": 2,
+          "block": 0,
+          "hold": 12
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 2,
+        "not_allow_truth_n": 14,
+        "rate": 0.14285714285714285
+      },
+      "hold_rate": 0.46875,
+      "n": 32,
+      "unsafe_allow": null
+    },
+    "validation/source/nl2bash": {
+      "accuracy": 0.95,
+      "always_hold_accuracy_reference": 0.2,
+      "benign_block": null,
+      "brier_multiclass": 0.07011733424999997,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 32,
+          "block": 0,
+          "hold": 0
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "hold": {
+          "allow": 0,
+          "block": 2,
+          "hold": 6
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 0,
+        "not_allow_truth_n": 8,
+        "rate": 0.0
+      },
+      "hold_rate": 0.15,
+      "n": 40,
+      "unsafe_allow": null
+    },
+    "validation/source/ssh": {
+      "accuracy": 0.8888888888888888,
+      "always_hold_accuracy_reference": 0.8888888888888888,
+      "benign_block": null,
+      "brier_multiclass": 0.14613259166666664,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 0,
+          "block": 0,
+          "hold": 2
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "hold": {
+          "allow": 0,
+          "block": 0,
+          "hold": 16
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 0,
+        "not_allow_truth_n": 16,
+        "rate": 0.0
+      },
+      "hold_rate": 1.0,
+      "n": 18,
+      "unsafe_allow": null
+    },
+    "validation/source/synthetic_evaluation_v1": {
+      "accuracy": 0.3333333333333333,
+      "always_hold_accuracy_reference": 0.0,
+      "benign_block": null,
+      "brier_multiclass": 1.287772225,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "block": {
+          "allow": 2,
+          "block": 2,
+          "hold": 2
+        },
+        "hold": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 2,
+        "not_allow_truth_n": 6,
+        "rate": 0.3333333333333333
+      },
+      "hold_rate": 0.3333333333333333,
+      "n": 6,
+      "unsafe_allow": null
+    },
+    "validation/source/tbench": {
+      "accuracy": 0.925,
+      "always_hold_accuracy_reference": 0.425,
+      "benign_block": null,
+      "brier_multiclass": 0.13448988300000003,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 20,
+          "block": 0,
+          "hold": 3
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "hold": {
+          "allow": 0,
+          "block": 0,
+          "hold": 17
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 0,
+        "not_allow_truth_n": 17,
+        "rate": 0.0
+      },
+      "hold_rate": 0.5,
+      "n": 40,
+      "unsafe_allow": null
+    },
+    "validation/source/tldr": {
+      "accuracy": 0.6842105263157895,
+      "always_hold_accuracy_reference": 0.3157894736842105,
+      "benign_block": null,
+      "brier_multiclass": 0.461709565263158,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 14,
+          "block": 0,
+          "hold": 12
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "hold": {
+          "allow": 0,
+          "block": 0,
+          "hold": 12
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 0,
+        "not_allow_truth_n": 12,
+        "rate": 0.0
+      },
+      "hold_rate": 0.631578947368421,
+      "n": 38,
+      "unsafe_allow": null
+    }
+  },
+  "model.safetensors_sha256": "eb4e07261ae096965f0a6fbd1e5a07e4ef2e5bc96c51f12aeb3196d956741ecf",
+  "native_session_performance_claimed": false,
+  "predictions": 174,
+  "question_sha256": "383af7a8db18392ab3734c544a809da1528344ec6e96c896fc184dde79ea04ac",
+  "rl_agent_config.json_sha256": "882614001167044a95d47b6996bf34adf002420f4a3facc602ee2b6300f8afb5",
+  "splits": [
+    "validation"
+  ],
+  "state_tokens_max": 188,
+  "state_tokens_median": 99.0
+}

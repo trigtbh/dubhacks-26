@@ -26,16 +26,22 @@ ReviewQueue &reviews()
 	return q;
 }
 
-// Benign commands the shell itself runs that must never be held, or routine
-// actions hang (clear_console runs on every logout). Matched on the resolved
-// program, so a copy planted elsewhere under the same name is not covered.
+// Benign shell startup commands must not be held or the session cannot start.
 bool always_allow(const Event &ev)
 {
-	static const char *const paths[] = {"/usr/bin/clear_console"};
 	const std::string &prog = !ev.file.empty() ? ev.file : ev.path;
-	for (const char *p : paths)
-		if (prog == p || (prog.empty() && !ev.argv.empty() && ev.argv[0] == p))
-			return true;
+	if (prog == "/usr/bin/clear_console") return true;
+
+	const char *demo_bootstrap = getenv("SID_DEMO_ALLOW_SHELL_BOOTSTRAP");
+	if (!demo_bootstrap || std::string(demo_bootstrap) != "1" || ev.uid != 10001 || ev.cwd != "/workspace")
+		return false;
+	if ((ev.file == "/usr/bin/python3" || ev.file == "/usr/bin/python3.11") && ev.argv.size() == 2 &&
+	    ev.argv[0] == "python3" && ev.argv[1] == "-q")
+		return true;
+	if (ev.file == "/usr/bin/bash" && ev.argv.size() == 4 &&
+	    ev.argv[0] == "bash" && ev.argv[1] == "--noprofile" &&
+	    ev.argv[2] == "--norc" && ev.argv[3] == "-i")
+		return true;
 	return false;
 }
 

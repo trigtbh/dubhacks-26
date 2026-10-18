@@ -1,0 +1,11 @@
+**
+!Makefile
+!src
+!src/**
+!runtime
+!runtime/laya_worker.py
+!dataset
+!dataset/render.py
+!demos
+!demos/exposed-shell
+!demos/exposed-shell/**

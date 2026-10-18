@@ -57,6 +57,22 @@ bool hits_daemon(int pid)
 	return false;
 }
 
+std::vector<Target> denial_plan(const Event &ev)
+{
+	const char *demo = getenv("SID_DEMO_COMMAND_ONLY");
+	if (!demo || strcmp(demo, "1") != 0)
+		return plan_enforcement(ev);
+	bool shell_parent = false;
+	for (const auto &p : ev.parent_chain)
+		if (is_shell(p.exe)) {
+			shell_parent = true;
+			break;
+		}
+	if (!shell_parent || ev.pid <= 0)
+		return {};
+	return {{"kill-command", (int)ev.pid, ev.file.empty() ? ev.path : ev.file}};
+}
+
 std::string target_json(const Target &t, bool protected_, bool killed)
 {
 	return "{\"action\":" + json_str(t.action) + ",\"pid\":" + std::to_string(t.pid) + ",\"exe\":" + json_str(t.exe) +
@@ -131,7 +147,7 @@ std::string origin_json(const Event &ev)
 			   ",\"exe\":" + json_str(ev.parent_chain[i].exe) + "}";
 	parents += "]";
 	std::string sever = "[";
-	auto plan = plan_enforcement(ev);
+	auto plan = denial_plan(ev);
 	for (size_t i = 0; i < plan.size(); i++)
 		sever += (i ? "," : "") + std::string("{\"action\":") + json_str(plan[i].action) + ",\"pid\":" +
 			 std::to_string(plan[i].pid) + ",\"exe\":" + json_str(plan[i].exe) + "}";
@@ -167,7 +183,6 @@ std::string enforce_denial(const Event &ev, const std::string &reason)
 	(void)reason;
 	if (!enforcement_enabled())
 		return "{\"enabled\":false}";
-	std::string actions =
-	    carry_out(plan_enforcement(ev), [](int pid) { return kill(pid, SIGKILL) == 0; }, hits_daemon);
+	std::string actions = carry_out(denial_plan(ev), [](int pid) { return kill(pid, SIGKILL) == 0; }, hits_daemon);
 	return "{\"enabled\":true,\"actions\":" + actions + "}";
 }

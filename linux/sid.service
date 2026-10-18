@@ -5,7 +5,7 @@ After=local-fs.target
 [Service]
 Type=notify
 NotifyAccess=main
-TimeoutStartSec=300  # eBPF compile is slow under emulation
+TimeoutStartSec=300
 ExecStart=/usr/local/bin/sid-daemon
 WorkingDirectory=/workspace
 EnvironmentFile=-/etc/sid/model.env

@@ -203,7 +203,8 @@ std::string summary_json(const Report &r, size_t top)
 	std::string s = head_json(r) + ",\"top\":[";
 	for (size_t i = 0; i < sorted.size() && i < top; i++)
 		s += (i ? "," : "") + change_json(sorted[i]);
-	return s + "],\"more\":" + std::to_string(sorted.size() > top ? sorted.size() - top : 0) + "}";
+	return s + "],\"more\":" + std::to_string(sorted.size() > top ? sorted.size() - top : 0) +
+	       ",\"output\":" + json_str(r.output) + "}";
 }
 
 std::string full_json(const Report &r)

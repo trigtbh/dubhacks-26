@@ -7,3 +7,4 @@ PrintMotd no
 # Keep SSH_CONNECTION etc. honest; the daemon reads them from /proc/<pid>/environ.
 PermitUserEnvironment no
 ClientAliveInterval 30
+ForceCommand /usr/local/bin/sid-session

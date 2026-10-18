@@ -40,5 +40,5 @@ and skip otherwise. `make test-data` runs the Python data tests; `make test-mode
 runs the model protocol tests with fake workers. Neither requires a GPU or checkpoint.
 
 `make` builds the Linux daemon, simulation helper and eBPF program, requiring a C++17 compiler, clang,
-bpftool, libbpf, libelf, zlib and kernel BTF. `sandbox.sh` and `vm.sh` provide the existing
-isolated demo environments; read their usage comments before starting them.
+bpftool, libbpf, libelf, zlib and kernel BTF. `sandbox.sh` runs the isolated Docker environment;
+`linux/install.sh` installs the system-wide capture on a Linux host.

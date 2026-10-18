@@ -1,7 +1,5 @@
-# check=skip=FromPlatformFlagConstDisallowed
-# sid dev sandbox: Ubuntu 24.04 on x86_64, matching the target VM.
-# Built and run by ../sandbox.sh, which always passes --platform linux/amd64.
-FROM --platform=linux/amd64 ubuntu:24.04
+# sid dev sandbox: Ubuntu 24.04, matching the Docker host architecture.
+FROM ubuntu:24.04
 
 ARG DEV_USER=dev
 ARG DEV_UID=1000
@@ -12,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
                 build-essential gcc g++ make pkg-config gdb \
-        # sid-daemon (C++/eBPF): built at container start against the host kernel's BTF
+        # sid-daemon (C++): linked in session mode; standalone Linux capture also uses libbpf
         clang llvm libbpf-dev libelf-dev zlib1g-dev linux-tools-common linux-tools-generic \
         libseccomp-dev seccomp libcap-dev libcap2-bin linux-libc-dev \
         # daemon / explore (Python, overlayfs, netns, strace)

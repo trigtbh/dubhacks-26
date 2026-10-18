@@ -155,7 +155,9 @@ export function mountStage(host, { store, shapes, decide }) {
     const reason = rec.ev && rec.ev.reason ? h('p', 'lv-reason') : null;
     if (reason) reason.append(h('span', 'lv-field-label', 'Reason'), h('span', 'lv-reason-text', String(rec.ev.reason)));
     const prob = h('div', 'lv-prob');
-    prob.append(probMark(rec.model && rec.model.probabilities).el);
+    el.probMark = probMark(rec.model && rec.model.probabilities);
+    el.probKey = JSON.stringify(rec.model && rec.model.probabilities || null);
+    prob.append(el.probMark.el);
 
     const main = h('div', 'lv-main');
     main.append(head, cmd);
@@ -199,13 +201,16 @@ export function mountStage(host, { store, shapes, decide }) {
       : recorded ? 'Inspected command context' : 'Structured event fields';
     fact(dl, 'Context source', contextSource, 'lv-more lv-wide');
 
-    el.scroll.append(el.sys, top, dl);
+    const context = h('section', 'lv-context');
+    context.append(h('h3', 'lv-section-title', 'Execution details'), dl);
+    el.scroll.append(el.sys, top, context);
     if (c.suspect) el.scroll.append(h('p', 'lv-warn', c.contextMismatch
       ? 'The inspected context conflicts with event data. Context-only details are hidden; the fields above come from the event.'
       : 'The supplied command context could not be read. The fields above come from the event.'));
 
     if (q) {
       const sec = h('section', 'lv-q');
+      el.activityTitle = h('h3', 'lv-section-title', rec.review ? 'Simulation activity' : 'Quarantine activity');
       const qh = h('div', 'lv-qhead');
       el.rb = h('div', 'lv-ringbox');
       el.rb.setAttribute('role', 'timer');
@@ -248,7 +253,7 @@ export function mountStage(host, { store, shapes, decide }) {
         return { pane, hd, n };
       };
       const po = mkPane('out', 'Output', 'Open the full output');
-      const pf = mkPane('files', 'Files changed', 'Open the full list of file changes');
+      const pf = mkPane('files', 'Files changed', 'Open the reported file changes');
       el.outN = po.n;
       el.filesN = pf.n;
       el.out = h('div', 'lv-out');
@@ -257,7 +262,7 @@ export function mountStage(host, { store, shapes, decide }) {
       pf.pane.append(pf.hd, el.files);
       panes.append(po.pane, pf.pane);
 
-      sec.append(qh, panes);
+      sec.append(el.activityTitle, qh, panes);
       el.scroll.append(sec);
 
       // Allow and Block, or the outcome once it is settled. Part of the panel, not a bar of its own.
@@ -369,7 +374,7 @@ export function mountStage(host, { store, shapes, decide }) {
       }
       if (!list.length && !f.placeholder) { f.placeholder = h('span', 'lv-empty', qd && qd.end ? 'No file changes reported.' : 'No file changes yet.'); f.body.append(f.placeholder); fadeIn(f.placeholder); }
       else if (!list.length) changeText(f.placeholder, qd && qd.end ? 'No file changes reported.' : 'No file changes yet.');
-      changeText(f.meta, qd && qd.fileCount ? `${qd.fileCount} changes` : '');
+      changeText(f.meta, qd && qd.fileCount ? (qd.filesPushed ? `${qd.files.size} shown of ${qd.fileCount} changes` : `${qd.fileCount} changes`) : '');
     }
   }
 
@@ -436,7 +441,7 @@ export function mountStage(host, { store, shapes, decide }) {
       changeText(el.fph, message);
     }
     el.filesReady = true;
-    changeText(el.filesN, qd && qd.fileCount ? `${qd.fileCount} changes` : '');
+    changeText(el.filesN, qd && qd.fileCount ? (qd.filesPushed ? `${qd.files.size} shown of ${qd.fileCount} changes` : `${qd.fileCount} changes`) : '');
   }
 
   function paintAct(st) {
@@ -478,6 +483,13 @@ export function mountStage(host, { store, shapes, decide }) {
     if (latest) rec = latest;
     const v = vOf(rec), st = store.state(rec);
 
+    const probabilityKey = JSON.stringify(rec.model && rec.model.probabilities || null);
+    if (probabilityKey !== el.probKey) {
+      el.probKey = probabilityKey;
+      fadeChange(el.probMark.el, () => el.probMark.set(rec.model && rec.model.probabilities));
+    }
+    if (el.activityTitle) changeText(el.activityTitle, rec.review ? 'Simulation activity' : 'Quarantine activity');
+
     if (v !== el.v) {
       el.v = v;
       shapes.morph(el.chip, v);
@@ -488,22 +500,27 @@ export function mountStage(host, { store, shapes, decide }) {
     else if (!el.sys.hidden) fadeChange(el.sys, () => { el.sys.textContent = ''; el.sys.hidden = true; });
 
     if (!el.q) return;
-    const live = st === 'queued' || st === 'investigating';
+    const live = !rec.review && (st === 'queued' || st === 'investigating');
     const total = rec.q && rec.q.start ? rec.q.start.duration_ms : 0, rem = store.remaining(rec);
     const done = st === 'report' || !!rec.decision;
-    const frac = live ? (total ? Math.max(0, Math.min(1, rem / total)) : 1) : done ? 1 : 0;
+    const frac = rec.review ? (rec.review.finished ? 1 : 0) : live ? (total ? Math.max(0, Math.min(1, rem / total)) : 1) : done ? 1 : 0;
     el['lv-ring-fg'].setAttribute('stroke-dashoffset', (CIRC * (1 - frac)).toFixed(2));
-    const rt = st === 'queued' ? '…' : st === 'investigating' ? mmss(rem) : st === 'noreport' ? '–' : 'Done';
+    const rt = rec.review ? (rec.review.finished ? 'Done' : '…') : st === 'queued' ? '…' : st === 'investigating' ? mmss(rem) : st === 'noreport' ? '–' : 'Done';
     changeText(el.ringValue, rt);
-    el.ringT.classList.toggle('is-word', st !== 'investigating');
-    changeText(el.ringCaption, st === 'investigating' ? 'left' : '');
+    el.ringT.classList.toggle('is-word', !!rec.review || st !== 'investigating');
+    changeText(el.ringCaption, !rec.review && st === 'investigating' ? 'left' : '');
     el.rb.setAttribute('aria-label', rec.decision ? (rec.q && rec.q.end ? 'Quarantine finished' : 'Decision recorded')
+      : rec.review && !rec.review.finished && st === 'noreport' ? 'Simulation unavailable'
+      : rec.review && !rec.review.finished ? (rec.review.summary ? 'Simulation running' : 'Simulation starting')
+      : rec.review ? 'Simulation ready for review'
       : st === 'investigating' ? `Time remaining: ${mmss(rem)}`
       : st === 'queued' ? 'Quarantine starting'
       : st === 'noreport' ? 'No report from the quarantine' : 'Report ready');
     el.rb.classList.toggle('is-urgent', live && rem > 0 && rem <= 10000);
     el.rb.classList.toggle('is-done', done);
-    const qText = rec.decision ? (rec.q && rec.q.end ? 'Quarantine finished' : 'Decision recorded') : st === 'queued' ? 'Starting the quarantine…'
+    const qText = rec.decision ? (rec.q && rec.q.end ? 'Quarantine finished' : 'Decision recorded')
+      : rec.review ? (rec.review.finished ? 'Simulation ready for review' : st === 'noreport' ? 'Simulation unavailable' : rec.review.summary ? 'Simulating command' : 'Starting simulation…')
+      : st === 'queued' ? 'Starting the quarantine…'
       : st === 'investigating' ? (rem > 0 ? 'Running in quarantine' : 'Finishing…')
       : st === 'report' ? 'Report ready' : st === 'noreport' ? 'No report from the quarantine' : '';
     changeText(el.qtxt, qText);

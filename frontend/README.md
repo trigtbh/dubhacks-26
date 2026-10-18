@@ -1,8 +1,8 @@
 # sid dashboard
 
-A local page that shows the commands sid blocked or held, and the held ones a person later
-approved. Allowed commands are not kept. It is built from the design system in `design/`
-and shows only what is in the log: there is no sample data.
+A local page for commands sid blocked or held. Every context value has a visible field label;
+model probabilities show their values and outcome names beside geometric marks. Missing fields
+are shown as not recorded. The page reads the event log and has no built-in sample records.
 
 A click on a row opens its detail. Until something is blocked or held, the page shows a
 plain empty state on a flat background.
@@ -16,20 +16,26 @@ to `sid-daemon`, and needs only a C compiler.
 make -C frontend dist      # on the host: builds the page into frontend/dist
 ```
 
-In the VM (`./vm.sh` opens a shell; the repo is mounted at `/workspace`):
+To see a populated demo with twelve probability examples, build the local server and run the
+fake-data simulator (from the `frontend` directory):
 
 ```
-cd /workspace/frontend && make run
+make dist server
+node sim/sim.mjs --scenario probabilities --clean --serve
 ```
 
-Then open http://127.0.0.1:8080 on the host. The VM forwards the port by itself.
+The simulator writes only to `sim/.run/`; its events are sample data, not live sid decisions.
 
-In the container, `sandbox.sh` already publishes port 8080 on the host's loopback. The
-server has to listen on all of the container's addresses for that to reach it:
+In the Docker sandbox, `./sandbox.sh` builds the page when Node.js is installed, starts
+the web server before capture initialization, and prints its URL when it responds. If
+capture startup fails, the dashboard stays available and SSH stays off. On a host without
+Node.js, an existing `frontend/dist` can still be served; otherwise install Node.js and
+run `make -C frontend dist`. Rebuild and restart with `./sandbox.sh --build`.
 
-```
-SID_WEB_ADDR=0.0.0.0 make -C /workspace/frontend run
-```
+In the Docker sandbox, sid gates commands launched by SSH sessions inside the container.
+The image is built for the Docker host's native architecture (including `linux/arm64` on
+Apple Silicon); it does not use x86 emulation. Standalone Linux installs use fanotify and
+eBPF to capture system-wide execs.
 
 To keep it running, `make install` copies `sid-web` and the page into `/usr/local`, and
 `sid-web.service` runs it as an unprivileged user next to `sid.service`.
@@ -44,6 +50,7 @@ log must be readable by the user it runs as.
 | `SID_WEB_ROOT` | `dist` | folder with the built page |
 | `SID_EVENT_LOG` | `/var/log/sid/events.jsonl` | the same variable `sid-daemon` uses |
 | `SID_DECISION_LOG` | `/var/log/sid/decisions.jsonl` | where `POST /decide` appends a person's answer; the file must already exist and be writable |
+| `SID_REVIEW_SOCK` | `/run/sid/review.sock` | private daemon socket used for decisions and live simulation summaries |
 
 Open the page with `?theme=night` or `?theme=paper` to pick a theme. Without it the page is
 Night unless the system asks for light.
@@ -51,21 +58,21 @@ Night unless the system asks for light.
 ## What it keeps
 
 Blocked and held commands. An allowed command is dropped by `sid-web` before it reaches the
-browser, so a busy machine costs the page nothing.
+browser. The selected command shows labeled event and context fields, quarantine output and file
+changes when available, and the model's three probabilities when they were recorded.
 
-The one allowed line that is kept is the one that settles a held command. `sid-daemon` does
-not take approvals yet. When it does, write the decision to the log as another event with
-the same `id` as the hold, and `verdict` set to `allow` for an approval or `block` for a
-denial. The held row then changes in place: its chip morphs, it says "Approved" or gives the
-block reason, and it keeps its spot and time. An allowed line whose `id` was never held is
-dropped.
+The allowed line that settles a held command is kept with the hold. When a report is ready, the
+detail panel's Allow and Block buttons write a decision for that held ID. The row updates in
+place and keeps its original time. An allowed line whose ID was never held is dropped.
 
 ## How it works
 
 `server/sid-web.c` is the whole server: one thread and one `poll()` loop, about 2 MB of
 memory, and no work at all while no browser is connected. It serves `dist/` and one stream,
 `/events`, which sends the last 1000 blocked, held and settled lines (and the quarantine lines
-of held commands) and then each new log line as it is written. It reads the log's two layouts (`"id":"x"` and `"id": "x"`). It also tells the page
+of held commands) and then each new log line as it is written. While a browser is connected, it
+also reads pending ReviewQueue summaries every 500 ms and sends simulation progress and final
+reports to the page. It reads the log's two layouts (`"id":"x"` and `"id": "x"`). It also tells the page
 when no root-owned `sid-daemon` process is running, which is what the "Daemon unreachable"
 state shows.
 
@@ -76,8 +83,8 @@ rejects that from any other web page; it never touches the event log. The page i
 forbids inline script and outside connections.
 
 `src/` is the page: plain DOM, no framework. `build.mjs` runs esbuild and writes `dist/`,
-which is plain HTML, CSS, JavaScript, and the fonts used by the page. No animated background
-shader or floating background shapes are loaded.
+which is plain HTML, CSS, JavaScript, and the fonts used by the page. The background stays flat;
+elements fade in or out, and no decorative shapes float behind the content.
 
 Everything in an event is text an attacker may have chosen, so it only reaches the page
 through `textContent`.
@@ -92,7 +99,6 @@ colors or sizes.
 
 Decisions the design system left to the page:
 
-- A very long command stops at four lines in the list and is shown whole in the detail panel.
-- The page scrolls as one, with the detail panel pinned beside the list, so nothing is cut off.
-- The hold card with Approve and Deny is not built, because `sid-daemon` has no way to take
-  an answer yet.
+- A very long command is clamped in the list and shown whole in the detail panel.
+- Labeled context fields and log content scroll within the detail panel.
+- Allow and Block controls appear when a held command has a report ready.

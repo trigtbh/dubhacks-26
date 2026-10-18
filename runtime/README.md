@@ -44,7 +44,7 @@ waiting time only, without changing class thresholds or the selected checkpoint.
 `make install` installs the worker and shared renderer beside the native binaries.
 The sandbox image installs CPU Laya dependencies and `sandbox.sh` mounts the selected
 host checkpoint read-only at `/opt/sid-checkpoint`, including when `.data` is a symlink.
-Rebuild an existing image after this change: `./sandbox.sh --rebuild`.
+Rebuild the image and recreate the sandbox after this change: `./sandbox.sh --build`.
 
 For the VM, provide Laya in the guest Python environment and copy/mount a checkpoint
 into the guest. The systemd service runs from `/workspace` and reads optional

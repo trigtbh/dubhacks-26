@@ -1,0 +1,5 @@
+account_id,months_active,plan,churned
+acct-1042,3,basic,yes
+acct-1098,11,pro,no
+acct-1137,6,basic,no
+acct-1214,18,team,no

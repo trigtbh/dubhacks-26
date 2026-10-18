@@ -1,0 +1,305 @@
+{
+  "batch_seconds": 0.37992128799669445,
+  "candidate_sha256": "e1eb3071b954aafc5260b486a59959ad3f0db22fb4d64e0293c56c3f430b617b",
+  "checkpoint": ".data/pilot-v2/finetune-04/checkpoint",
+  "excluded": {},
+  "gpu": "NVIDIA GeForce RTX 5090",
+  "harm_metrics_available": false,
+  "harm_metrics_omitted_reason": "Hold-row harm facts require independent human verification; model label agreement does not validate them",
+  "label_provenance": "model_proposed_or_reviewed_not_human_gold",
+  "labels_seen_during_prediction": false,
+  "latency_ms_p50": 8.443161495961249,
+  "latency_ms_p90": 8.90344800427556,
+  "load_seconds": 3.8991589280194603,
+  "metrics": {
+    "gold": {
+      "accuracy": 0.7564766839378239,
+      "always_hold_accuracy_reference": 0.48704663212435234,
+      "benign_block": null,
+      "brier_multiclass": 0.3440959579792747,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 165,
+          "block": 0,
+          "hold": 29
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 4
+        },
+        "hold": {
+          "allow": 61,
+          "block": 0,
+          "hold": 127
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 61,
+        "not_allow_truth_n": 192,
+        "rate": 0.3177083333333333
+      },
+      "hold_rate": 0.41450777202072536,
+      "n": 386,
+      "unsafe_allow": null
+    },
+    "gold/history/missing": {
+      "accuracy": 0.75,
+      "always_hold_accuracy_reference": 0.4411764705882353,
+      "benign_block": null,
+      "brier_multiclass": 0.3517460416176469,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 27,
+          "block": 0,
+          "hold": 11
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "hold": {
+          "allow": 6,
+          "block": 0,
+          "hold": 24
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 6,
+        "not_allow_truth_n": 30,
+        "rate": 0.2
+      },
+      "hold_rate": 0.5147058823529411,
+      "n": 68,
+      "unsafe_allow": null
+    },
+    "gold/history/present": {
+      "accuracy": 0.7578616352201258,
+      "always_hold_accuracy_reference": 0.4968553459119497,
+      "benign_block": null,
+      "brier_multiclass": 0.342460091037736,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 138,
+          "block": 0,
+          "hold": 18
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 4
+        },
+        "hold": {
+          "allow": 55,
+          "block": 0,
+          "hold": 103
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 55,
+        "not_allow_truth_n": 162,
+        "rate": 0.3395061728395062
+      },
+      "hold_rate": 0.39308176100628933,
+      "n": 318,
+      "unsafe_allow": null
+    },
+    "gold/source/art": {
+      "accuracy": 0.65,
+      "always_hold_accuracy_reference": 0.475,
+      "benign_block": null,
+      "brier_multiclass": 0.41261202612499986,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 30,
+          "block": 0,
+          "hold": 10
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 2
+        },
+        "hold": {
+          "allow": 16,
+          "block": 0,
+          "hold": 22
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 16,
+        "not_allow_truth_n": 40,
+        "rate": 0.4
+      },
+      "hold_rate": 0.425,
+      "n": 80,
+      "unsafe_allow": null
+    },
+    "gold/source/nl2bash": {
+      "accuracy": 0.9473684210526315,
+      "always_hold_accuracy_reference": 0.2894736842105263,
+      "benign_block": null,
+      "brier_multiclass": 0.10636484802631578,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 54,
+          "block": 0,
+          "hold": 0
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "hold": {
+          "allow": 4,
+          "block": 0,
+          "hold": 18
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 4,
+        "not_allow_truth_n": 22,
+        "rate": 0.18181818181818182
+      },
+      "hold_rate": 0.23684210526315788,
+      "n": 76,
+      "unsafe_allow": null
+    },
+    "gold/source/ssh": {
+      "accuracy": 0.75,
+      "always_hold_accuracy_reference": 0.7352941176470589,
+      "benign_block": null,
+      "brier_multiclass": 0.39486711426470594,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 11,
+          "block": 0,
+          "hold": 7
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "hold": {
+          "allow": 10,
+          "block": 0,
+          "hold": 40
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 10,
+        "not_allow_truth_n": 50,
+        "rate": 0.2
+      },
+      "hold_rate": 0.6911764705882353,
+      "n": 68,
+      "unsafe_allow": null
+    },
+    "gold/source/synthetic_evaluation_v1": {
+      "accuracy": 0.0,
+      "always_hold_accuracy_reference": 0.0,
+      "benign_block": null,
+      "brier_multiclass": 1.6247923,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 2
+        },
+        "hold": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 0,
+        "not_allow_truth_n": 2,
+        "rate": 0.0
+      },
+      "hold_rate": 1.0,
+      "n": 2,
+      "unsafe_allow": null
+    },
+    "gold/source/tbench": {
+      "accuracy": 0.8125,
+      "always_hold_accuracy_reference": 0.325,
+      "benign_block": null,
+      "brier_multiclass": 0.25209140412499986,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 47,
+          "block": 0,
+          "hold": 7
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "hold": {
+          "allow": 8,
+          "block": 0,
+          "hold": 18
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 8,
+        "not_allow_truth_n": 26,
+        "rate": 0.3076923076923077
+      },
+      "hold_rate": 0.3125,
+      "n": 80,
+      "unsafe_allow": null
+    },
+    "gold/source/tldr": {
+      "accuracy": 0.65,
+      "always_hold_accuracy_reference": 0.65,
+      "benign_block": null,
+      "brier_multiclass": 0.5182561067500002,
+      "confusion_truth_rows_prediction_columns": {
+        "allow": {
+          "allow": 23,
+          "block": 0,
+          "hold": 5
+        },
+        "block": {
+          "allow": 0,
+          "block": 0,
+          "hold": 0
+        },
+        "hold": {
+          "allow": 23,
+          "block": 0,
+          "hold": 29
+        }
+      },
+      "false_allow_vs_labels": {
+        "count": 23,
+        "not_allow_truth_n": 52,
+        "rate": 0.4423076923076923
+      },
+      "hold_rate": 0.425,
+      "n": 80,
+      "unsafe_allow": null
+    }
+  },
+  "model.safetensors_sha256": "86cb71e1c31d2632658741400a65663b14f8ab9fe1fb42c2720216e80a733433",
+  "native_session_performance_claimed": false,
+  "predictions": 386,
+  "question_sha256": "383af7a8db18392ab3734c544a809da1528344ec6e96c896fc184dde79ea04ac",
+  "rl_agent_config.json_sha256": "ac3ebde75d55ad3a89a76c014333d21213e5f92bc6260d5ab48b4546bf079268",
+  "splits": [
+    "gold"
+  ],
+  "state_tokens_max": 48,
+  "state_tokens_median": 48.0
+}

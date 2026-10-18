@@ -33,9 +33,11 @@ RUN userdel -r ubuntu 2>/dev/null || true \
     && install -d -m 700 -o "${DEV_USER}" -g "${DEV_USER}" /home/${DEV_USER}/.ssh \
     && install -d -o "${DEV_USER}" -g "${DEV_USER}" /home/${DEV_USER}/.cache
 
-# Python venv for sid-explore / Laya.
+# CPU inference in the portable sandbox; the host worker can use CUDA.
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip wheel \
+    && /opt/venv/bin/pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch \
+    && /opt/venv/bin/pip install --no-cache-dir laya==0.4.11 \
     && chown -R "${DEV_USER}:${DEV_USER}" /opt/venv
 ENV PATH=/opt/venv/bin:$PATH \
     HF_HOME=/home/${DEV_USER}/.cache/huggingface

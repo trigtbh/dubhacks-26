@@ -1,2 +1,16 @@
 .sandbox/
 build/
+models
+.venv
+__pycache__/
+# Local data stays ignored except the published checkpoints and their training data.
+.data/*
+!.data/pilot-v2/
+.data/pilot-v2/*
+!.data/pilot-v2/release/
+!.data/pilot-v2/finetune-04/
+!.data/runs/
+.data/runs/*
+!.data/runs/laya-haiku-01/
+.data/runs/laya-haiku-01/checkpoint/checkpoint_latest/
+!.data/block-proposals-haiku-v1/

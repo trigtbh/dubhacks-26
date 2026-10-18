@@ -17,7 +17,6 @@ const ansi = /\u001b(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007]*(?:\u0007|\u001b\\))/g;
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  if (!localRequest(req, res)) return;
 
   if (req.method === 'GET' && url.pathname === '/events') {
     const id = url.searchParams.get('session');
@@ -152,21 +151,6 @@ function stopSession(session) {
     session.child = null;
   }
   sessions.delete(session.id);
-}
-
-function localRequest(req, res, socket = false) {
-  const host = req.headers.host || '';
-  const allowed = new Set([`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`]);
-  const origin = req.headers.origin;
-  if (!allowed.has(host) || (origin && (() => {
-    try { const u = new URL(origin); return u.protocol !== 'http:' || u.host !== host; }
-    catch { return true; }
-  })())) {
-    if (socket) return false;
-    send(res, 403, 'Local demo only');
-    return false;
-  }
-  return true;
 }
 
 async function readJson(req, res) {

@@ -29,7 +29,9 @@ mountpoint -q /sys/kernel/tracing || mount -t tracefs nodev /sys/kernel/tracing 
 build_sid() {
     local src=/var/lib/sid/src bpftool_bin
     rm -rf "$src" && mkdir -p "$src" || return 1
-    cp -r /workspace/Makefile /workspace/src "$src"/ || return 1
+    cp -r /workspace/Makefile /workspace/src /workspace/runtime "$src"/ || return 1
+    mkdir -p "$src/dataset" || return 1
+    cp /workspace/dataset/render.py "$src/dataset/" || return 1
     find "$src" -type f -exec sed -i 's/\r$//' {} + || return 1
     bpftool_bin="$(ls /usr/lib/linux-tools/*/bpftool 2>/dev/null | head -n1 || true)"
     make -s -C "$src" BUILD=/var/lib/sid/build BPFTOOL="${bpftool_bin:-bpftool}" install || return 1

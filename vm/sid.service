@@ -1,5 +1,5 @@
 [Unit]
-Description=sid passive command capture
+Description=sid command review with Laya
 After=local-fs.target
 
 [Service]
@@ -7,6 +7,8 @@ Type=notify
 NotifyAccess=main
 TimeoutStartSec=300  # eBPF compile is slow under emulation
 ExecStart=/usr/local/bin/sid-daemon
+WorkingDirectory=/workspace
+EnvironmentFile=-/etc/sid/model.env
 # The machine is unguarded while this is down (the kernel allows every paused
 # program when the daemon dies), so come back immediately.
 Restart=always

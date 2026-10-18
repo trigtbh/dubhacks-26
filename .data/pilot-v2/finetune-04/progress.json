@@ -1,0 +1,23 @@
+{
+  "status": "complete",
+  "micro_steps_total": 292,
+  "optimizer_updates_total": 73,
+  "micro_step": 292,
+  "epoch": 1,
+  "epochs_total": 1,
+  "started_unix": 1792292284.6970127,
+  "updated_unix": 1792292339.2200263,
+  "last_loss": 0.1219,
+  "note": "loss is training loss, not accuracy",
+  "optimizer_update": 73,
+  "epoch_mean_losses": [
+    0.613
+  ],
+  "epoch_mean_loss": 0.613,
+  "training_seconds": 34.065114443947095,
+  "trainer_protocol_validation_accuracy": {
+    "before": 0.4655,
+    "after": 0.7069
+  },
+  "serving_validation_accuracy": 0.7586206896551724
+}

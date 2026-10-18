@@ -57,12 +57,12 @@ case "${1:-}" in
     *) sed -n '2,10p' "$0"; exit 1 ;;
 esac
 
-# Build the static page from the current source. The container does not need Node;
-# it serves frontend/dist directly. A prebuilt dist also works on hosts without Node.
-if command -v node >/dev/null 2>&1; then
-    make -C "$ROOT/frontend" dist || fail "dashboard page build failed"
-elif [[ ! -f "$ROOT/frontend/dist/index.html" ]]; then
-    fail "dashboard assets are missing; install Node.js and run 'make -C frontend dist'"
+# The container builds and serves the dashboard itself (see sandbox/entrypoint.sh),
+# so a host build is only an optional optimization. Attempt it when Node and make
+# are both present, but never abort the sandbox when the host cannot build the page
+# (e.g. Git Bash on Windows, which has no make).
+if command -v node >/dev/null 2>&1 && command -v make >/dev/null 2>&1; then
+    make -C "$ROOT/frontend" dist || echo "sid: host dashboard build failed; the container will build it" >&2
 fi
 
 # Dedicated keypair for the sandbox; never reuses the host's ~/.ssh keys.

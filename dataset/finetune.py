@@ -1,8 +1,9 @@
 """Fine-tune an approved release; frozen encoder unless --train-encoder is supplied.
 
-Default runs preflight only. --run trains on every approved train row, writes progress for a
-read-only monitor, and leaves the base checkpoint unchanged. Serving validation is run afterwards
-with evaluate.py. Gold is checked only for export integrity and separation from training.
+Default runs preflight only. --run trains on the approved train rows and synthetic demo
+examples, writes progress for a read-only monitor, and leaves the base checkpoint unchanged.
+--no-demo omits the demo examples. Serving validation is run afterwards with evaluate.py.
+Gold is checked only for export integrity and separation from training.
 """
 from __future__ import annotations
 import argparse
@@ -21,6 +22,7 @@ os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 spec = importlib.util.spec_from_file_location("contexts", Path(__file__).with_name("contexts.py"))
 c = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(c)
+demo = c.sibling("demo")
 LABELS = ("allow", "hold", "block")
 GROUP_KEYS = ("split_family", "split_unit", "pair_id", "state_sha256")
 
@@ -67,11 +69,10 @@ def verify_extra(rows, candidates, held):
                 raise ValueError(f"extra row shares {key} with {held[key, source[key]]}: {row['id']}")
 
 
-def preflight(release: Path, pilot: Path, base: Path, max_len: int, extra=(), extra_candidates=()) -> dict:
-    candidates = {r["id"]: r for r in map(json.loads, (pilot / "candidates.jsonl").open())}
-    annotations = {a["id"]: a for a in map(json.loads, (release / "annotations.jsonl").open())}
-    splits = {name: [json.loads(l) for l in (release / f"{name}.jsonl").open()]
-              for name in ("train", "validation", "gold")}
+def preflight(release: Path, pilot: Path, base: Path, max_len: int, extra=(), extra_candidates=(), demo_train=()) -> dict:
+    candidates = {r["id"]: r for r in demo.read(pilot / "candidates.jsonl")}
+    annotations = {a["id"]: a for a in demo.read(release / "annotations.jsonl")}
+    splits = {name: demo.read(release / f"{name}.jsonl") for name in ("train", "validation", "gold")}
     from tokenizers import Tokenizer
     tok = Tokenizer.from_file(str(base / "tokenizer/tokenizer.json"))
     tok.no_truncation()
@@ -91,12 +92,33 @@ def preflight(release: Path, pilot: Path, base: Path, max_len: int, extra=(), ex
                     raise ValueError(f"split leakage on {key}={value}")
     if extra:
         held = {k: v for k, v in owner.items() if v != "train"}
-        sources = {r["id"]: r for path in extra_candidates for r in map(json.loads, path.open())}
+        sources = {r["id"]: r for path in extra_candidates for r in demo.read(path)}
         if len({r["id"] for r in extra} | {r["id"] for r in splits["train"]}) != len(extra) + len(splits["train"]):
             raise ValueError("extra rows repeat ids")
         verify_extra(extra, sources, held)
         counts["extra_train_unapproved"] = dict(collections.Counter(r["expected"]["verdict"] for r in extra))
         tokens.extend(len(tok.encode(r["state"], add_special_tokens=False)) for r in extra)
+    if demo_train:
+        regression_states = {r["state"] for r in demo.examples("regression")}
+        held_states = {r["state"] for name in ("validation", "gold") for r in splits[name]}
+        held_states.update(regression_states)
+        seen_ids = {r["id"] for rows in splits.values() for r in rows} | {r["id"] for r in extra}
+        seen_states = {r["state"] for r in splits["train"]} | {r["state"] for r in extra}
+        if seen_states & regression_states:
+            raise ValueError("training overlaps demo regression inputs")
+        for row in demo_train:
+            if (row.get("questions") != {"verdict": c.renderer.VERDICT_QUESTION}
+                    or row["expected"]["verdict"] not in LABELS
+                    or row["state"] != c.renderer.render(row["event"])):
+                raise ValueError(f"demo row renderer/question/label mismatch: {row['id']}")
+            if row["state"] in held_states:
+                raise ValueError(f"demo training overlaps held-out inputs: {row['id']}")
+            if row["id"] in seen_ids or row["state"] in seen_states:
+                raise ValueError(f"duplicate demo training input: {row['id']}")
+            seen_ids.add(row["id"])
+            seen_states.add(row["state"])
+        counts["demo_train_policy"] = dict(collections.Counter(r["expected"]["verdict"] for r in demo_train))
+        tokens.extend(len(tok.encode(r["state"], add_special_tokens=False)) for r in demo_train)
     if max(tokens) > max_len:
         raise ValueError("train/validation state exceeds max_len")
     return {"counts": counts, "split_leakage": 0, "gold_ids_in_train_or_validation": 0,
@@ -166,6 +188,7 @@ def main():
     ap.add_argument("--epochs", type=int, default=1)
     ap.add_argument("--train-encoder", action="store_true", help="also update encoder weights (default lr 2.5e-5)")
     ap.add_argument("--run", action="store_true")
+    ap.add_argument("--no-demo", action="store_true", help="omit the synthetic demo training examples")
     ap.add_argument("--extra-train", type=Path, action="append", default=[],
                     help="unapproved draft rows appended to train only (experimental)")
     ap.add_argument("--extra-candidates", type=Path, action="append", default=[],
@@ -178,37 +201,42 @@ def main():
         ap.error("output directory is not empty; choose a new --out")
     if bool(args.extra_train) != bool(args.extra_candidates):
         ap.error("--extra-train and --extra-candidates go together")
-    extra = [json.loads(l) for path in args.extra_train for l in path.open()]
+    extra = [row for path in args.extra_train for row in demo.read(path)]
+    demo_train = [] if args.no_demo else demo.examples("train")
     from laya.train import TrainConfig, dry_run, finetune, optimizer_updates
-    # Natural class distribution, decided before any result: the 6 Block rows are 3 correlated
-    # scenarios, so oversampling would mostly memorize them. Per-class results are reported instead.
+    # Keep each input once; synthetic context variants already contain correlated examples.
     config = TrainConfig(epochs=args.epochs, micro_batch=4, grad_accum=4, freeze_encoder=not args.train_encoder, loss="soft-ce",
                          shuffle_options=("choice",), calib_frac=0, max_len=1024, head_max_len=256,
                          eval_data=str(args.release / "validation.jsonl"), seed=42, log_every=args.log_every)
     report = {"experimental_only": True, "production_checkpoint": False, "gold_used_for_training": False,
-              "gold_used_for_selection": False, "class_balancing": "none (natural distribution; decided before results)",
+              "gold_used_for_selection": False, "class_balancing": "none (each input row once)",
               "labels": "owner-approved release; model-proposed/reviewed, harm facts not human-verified",
+              "demo": {"enabled": not args.no_demo, "training_rows": len(demo_train),
+                       "labels": "synthetic policy-derived examples; not individually human verified",
+                       "shared_command_families_with_regressions": bool(demo_train)},
               "input_sha256": {str(p.resolve()): sha(p) for p in (
                   args.release / "train.jsonl", args.release / "validation.jsonl", args.release / "annotations.jsonl",
                   args.release / "readiness.json", args.pilot / "candidates.jsonl", Path(c.renderer.__file__),
-                  *args.extra_train, *args.extra_candidates)},
-              "preflight": preflight(args.release, args.pilot, args.base, 1024, extra, args.extra_candidates)}
+                  *args.extra_train, *args.extra_candidates,
+                  *((demo.CASES, Path(demo.__file__)) if demo_train else ()))},
+              "preflight": preflight(args.release, args.pilot, args.base, 1024, extra, args.extra_candidates, demo_train)}
     train_path = args.release / "train.jsonl"
     if extra:
         report["labels"] += "; plus unapproved draft rows (model-proposed, partial review)"
+    if demo_train:
+        report["labels"] += "; plus synthetic demo policy examples"
+    if extra or demo_train:
         args.out.mkdir(parents=True, exist_ok=True)
         train_path = args.out / "train.jsonl"
         with train_path.open("w") as f:
-            for line in (args.release / "train.jsonl").open():
-                f.write(line)
-            for row in extra:
+            for row in demo.read(args.release / "train.jsonl") + extra + demo_train:
                 f.write(json.dumps(row, sort_keys=True) + "\n")
         report["input_sha256"]["combined_train"] = sha(train_path)
     readiness = json.loads((args.release / "readiness.json").read_text())
     if not readiness.get("training_data_ready") or readiness.get("readiness_issues"):
         raise ValueError("release readiness does not permit training")
     n_train = report["preflight"]["counts"]["train"]
-    n_train = sum(n_train.values()) + len(extra)
+    n_train = sum(n_train.values()) + len(extra) + len(demo_train)
     report["config"] = {k: getattr(config, k) for k in config.__dataclass_fields__}
     report["micro_steps"] = -(-n_train // config.micro_batch) * config.epochs
     report["optimizer_updates"] = optimizer_updates(n_train, config.micro_batch, config.grad_accum, config.epochs)

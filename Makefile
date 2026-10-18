@@ -1,4 +1,4 @@
-# Build and install sid-daemon. Linux only; vm/install.sh runs this inside the VM.
+# Build and install sid-daemon. Linux only.
 PREFIX ?= /usr/local
 BUILD  ?= build
 CXX    ?= g++
@@ -12,12 +12,16 @@ EXPLORE_SRCS := src/explore_main.cpp src/changes.cpp src/overlay_diff.cpp
 TEST_SRCS := tests/test_main.cpp src/changes.cpp src/overlay_diff.cpp src/review.cpp src/unsure.cpp \
              src/jev.cpp src/enforce.cpp
 
-.PHONY: all install clean test test-data test-model check
+.PHONY: all install install-session clean test test-data test-model check
 all: $(BUILD)/sid-daemon $(BUILD)/sid-explore $(BUILD)/exec_trace.bpf.o
 
 $(BUILD)/sid-explore: $(EXPLORE_SRCS) $(wildcard src/*.hpp)
 	mkdir -p $(BUILD)
 	$(CXX) $(CXXFLAGS) -Isrc -o $@ $(EXPLORE_SRCS)
+
+$(BUILD)/sid-session: src/session.cpp src/session_rpc.hpp
+	mkdir -p $(BUILD)
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 $(BUILD)/vmlinux.h:
 	mkdir -p $(BUILD)
@@ -37,6 +41,15 @@ install: all
 	install -m 644 $(BUILD)/exec_trace.bpf.o $(PREFIX)/lib/sid/exec_trace.bpf.o
 	install -m 644 runtime/laya_worker.py $(PREFIX)/lib/sid/runtime/laya_worker.py
 	install -m 644 dataset/render.py $(PREFIX)/lib/sid/dataset/render.py
+
+# Docker uses seccomp notifications for SSH sessions, so it does not build BPF.
+install-session: $(BUILD)/sid-daemon $(BUILD)/sid-explore $(BUILD)/sid-session
+	install -d $(PREFIX)/bin $(PREFIX)/lib/sid/runtime $(PREFIX)/lib/sid/dataset
+	install -m 755 $(BUILD)/sid-daemon $(PREFIX)/bin/sid-daemon
+	install -m 755 $(BUILD)/sid-explore $(PREFIX)/bin/sid-explore
+	install -m 644 runtime/laya_worker.py $(PREFIX)/lib/sid/runtime/laya_worker.py
+	install -m 644 dataset/render.py $(PREFIX)/lib/sid/dataset/render.py
+	install -o root -g root -m 4755 $(BUILD)/sid-session $(PREFIX)/bin/sid-session
 
 # Unit tests. The overlay and whiteout cases need root (they skip otherwise);
 # TEST_TMP should be a tmpfs so trusted.overlay xattrs work.

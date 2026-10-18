@@ -1,6 +1,6 @@
 # Build the sid dashboard: the web server (C) and the page (esbuild into plain html, css, js).
 # The server needs only a C compiler. The page needs Node, and only to build it, so the two can
-# be built on different machines: the VM mounts this folder and builds just the server.
+# be built on different machines: the Docker sandbox mounts this folder and builds the server.
 #   make          build both (needs Node)
 #   make server   build only the web server
 #   make run      build the server and serve the real log (/var/log/sid/events.jsonl)
@@ -12,7 +12,7 @@ PREFIX ?= /usr/local
 CC     ?= cc
 CFLAGS ?= -O2 -std=gnu11 -Wall -Wextra
 
-# One binary per OS and CPU: the VM and the host share this folder.
+# One binary per OS and CPU: the container and host share this folder.
 BIN := build/$(shell uname -s)-$(shell uname -m)/sid-web
 
 ASAN := build/test/sid-web

@@ -1,13 +1,13 @@
 // sid-web: the dashboard's web server.
 //
-// Serves the files in dist/ and streams sid's event log to the browser as
-// server-sent events. One thread and one poll() loop. With no browser connected
+// Serves the files in dist/ and streams sid's event log and ReviewQueue progress
+// to the browser as server-sent events. One thread and one poll() loop. With no browser connected
 // it sleeps in poll() and does no work.
 //
 // Local only. It binds to 127.0.0.1 unless SID_WEB_ADDR says otherwise (inside a
 // container it must listen on 0.0.0.0, and the host publishes the port on its own
 // loopback), and it answers only requests whose Host header names loopback, so a
-// web page cannot reach it through DNS rebinding. It reads the event log and writes
+// web page cannot reach it through DNS rebinding. It reads the event log and review socket, and writes
 // exactly one thing: when a person clicks Allow or Block on a held command, POST /decide
 // appends one line to the decision file, which sid-daemon reads. It never changes the
 // event log.
@@ -17,6 +17,7 @@
 //   SID_WEB_ROOT      dist
 //   SID_EVENT_LOG     /var/log/sid/events.jsonl      (the variable sid-daemon uses)
 //   SID_DECISION_LOG  /var/log/sid/decisions.jsonl   (must already exist and be writable)
+//   SID_REVIEW_SOCK   /run/sid/review.sock           (decisions and simulation progress)
 //   SID_PROC_DIR      /proc                          (for tests)
 #define _GNU_SOURCE
 #include <arpa/inet.h>
@@ -38,6 +39,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#ifndef SOCK_CLOEXEC
+#define SOCK_CLOEXEC 0
+#endif
+
 enum {
 	MAXC = 32,               // simultaneous connections
 	INMAX = 8192,            // largest request
@@ -52,6 +57,8 @@ enum {
 	PING_MS = 15000,         // keeps idle streams alive through port forwarders
 	STALL_MS = 30000,        // drop a browser that stops reading
 	REQUEST_MS = 5000,       // drop a browser that never finishes its request
+	REVIEW_MAX = 256 * 1024, // largest ReviewQueue snapshot sent to a browser
+	REVIEW_MS = 500,         // refresh live simulation progress twice a second
 };
 
 static const char *const SEC =
@@ -77,6 +84,7 @@ typedef struct {
 	off_t cur;  // STREAM: log offset already sent
 	int skip;   // STREAM: discarding the rest of an oversized line
 	int guard;  // STREAM: last daemon state sent
+	unsigned review_gen; // STREAM: last ReviewQueue snapshot sent
 	unsigned gen;  // STREAM: which incarnation of the log `cur` belongs to
 } Client;
 
@@ -90,6 +98,11 @@ static off_t log_size;
 static unsigned log_gen;  // changes whenever the log is replaced or truncated
 static int guard = -1;  // sid-daemon running: 1 yes, 0 no, -1 cannot tell
 static int64_t guard_at;
+static char review_snapshot[REVIEW_MAX], review_next[REVIEW_MAX];
+static size_t review_len;
+static unsigned review_gen;
+static int review_known;
+static int64_t review_at;
 
 static int64_t now_ms(void)
 {
@@ -578,6 +591,87 @@ static size_t clock_frame(char *out, size_t cap)
 				ok ? "true" : "false");
 }
 
+// Read one LIST reply from ReviewQueue. It is local to the sandbox, and a
+// short timeout keeps a stalled daemon from holding up the web event loop.
+static int sid_review_list(char *out, size_t cap)
+{
+	int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	if (fd < 0)
+		return 0;
+	fcntl(fd, F_SETFD, FD_CLOEXEC);
+	struct sockaddr_un sa = {0};
+	sa.sun_family = AF_UNIX;
+	snprintf(sa.sun_path, sizeof(sa.sun_path), "%s", review_sock ? review_sock : "");
+	if (connect(fd, (struct sockaddr *)&sa, sizeof(sa)) != 0) {
+		close(fd);
+		return 0;
+	}
+	static const char req[] = "LIST\n";
+	size_t sent = 0;
+	while (sent < sizeof(req) - 1) {
+		ssize_t n = write(fd, req + sent, sizeof(req) - 1 - sent);
+		if (n < 0 && errno == EINTR)
+			continue;
+		if (n <= 0) {
+			close(fd);
+			return 0;
+		}
+		sent += (size_t)n;
+	}
+	size_t used = 0;
+	while (used + 1 < cap) {
+		struct pollfd p = {.fd = fd, .events = POLLIN};
+		int ready;
+		do {
+			ready = poll(&p, 1, 100);
+		} while (ready < 0 && errno == EINTR);
+		if (ready <= 0 || !(p.revents & (POLLIN | POLLHUP)))
+			break;
+		ssize_t n = read(fd, out + used, cap - used - 1);
+		if (n < 0 && errno == EINTR)
+			continue;
+		if (n <= 0)
+			break;
+		char *nl = memchr(out + used, '\n', (size_t)n);
+		if (nl) {
+			*nl = 0;
+			close(fd);
+			return 1;
+		}
+		used += (size_t)n;
+	}
+	close(fd);
+	return 0;
+}
+
+static void review_refresh(int64_t now)
+{
+	if (now - review_at < REVIEW_MS)
+		return;
+	review_at = now;
+	if (!sid_review_list(review_next, sizeof(review_next)))
+		return;
+	size_t n = strlen(review_next);
+	if (review_known && n == review_len && memcmp(review_snapshot, review_next, n) == 0)
+		return;
+	memcpy(review_snapshot, review_next, n + 1);
+	review_len = n;
+	review_known = 1;
+	review_gen++;
+}
+
+static void review_frame(Client *c)
+{
+	if (!review_known || c->review_gen == review_gen || c->olen + review_len + 32 > OUTMAX)
+		return;
+	c->olen += (size_t)snprintf(c->out + c->olen, OUTMAX - c->olen, "event: reviews\ndata: ");
+	memcpy(c->out + c->olen, review_snapshot, review_len);
+	c->olen += review_len;
+	memcpy(c->out + c->olen, "\n\n", 2);
+	c->olen += 2;
+	c->review_gen = review_gen;
+}
+
 static void start_stream(Client *c)
 {
 	char id[32], prev;
@@ -589,12 +683,14 @@ static void start_stream(Client *c)
 	c->cur = resume ? last : backlog_start();
 	c->gen = log_gen;
 	c->skip = 0;
+	c->review_gen = 0;
 	c->guard = -2;
 	c->olen = snprintf(c->out, OUTMAX,
 			   "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\n"
 			   "Connection: keep-alive\r\n%s\r\nretry: 1000\r\n\r\n",
 			   SEC);
 	c->olen += clock_frame(c->out + c->olen, OUTMAX - c->olen);
+	review_frame(c);
 	c->opos = 0;
 	c->st = STREAM;
 }
@@ -633,6 +729,7 @@ static int sid_review(const char *verb, const char *id, char *err, size_t errlen
 		snprintf(err, errlen, "socket: %s", strerror(errno));
 		return 0;
 	}
+	fcntl(fd, F_SETFD, FD_CLOEXEC);
 	struct sockaddr_un sa = {0};
 	sa.sun_family = AF_UNIX;
 	snprintf(sa.sun_path, sizeof(sa.sun_path), "%s", review_sock ? review_sock : "");
@@ -846,6 +943,7 @@ static void pump(Client *c, int64_t now)
 		c->olen += snprintf(c->out, OUTMAX, "event: status\ndata: %s\n\n", guard ? "up" : "down");
 		c->guard = guard;
 	}
+	review_frame(c);
 	if (c->gen != log_gen || c->cur > tpos)  // the log was replaced or truncated: from the top
 		c->cur = 0, c->skip = 0, c->gen = log_gen;
 	if (c->cur < tpos && log_fd >= 0) {
@@ -1041,6 +1139,7 @@ int main(void)
 		if (streams) {
 			log_refresh();
 			guard_refresh(now);
+			review_refresh(now);
 		}
 		for (int i = 0; i < MAXC; i++) {
 			Client *c = &cl[i];

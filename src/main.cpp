@@ -7,13 +7,23 @@
 //
 // Start the persistent model child before capture. During capture, model calls
 // use its private socket; our children (including simulations) bypass capture.
+// Fanotify mode must not exec children after capture starts; session mode uses
+// seccomp filters installed only in authenticated SSH session processes.
 #include <bpf/libbpf.h>
+#include <linux/seccomp.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/uio.h>
 #include <time.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <atomic>
+#include <algorithm>
+#include <cerrno>
 #include <cstdarg>
 #include <cstddef>
 #include <cstring>
@@ -34,6 +44,7 @@
 #include "context.hpp"
 #include "decide.hpp"
 #include "fan.hpp"
+#include "session_rpc.hpp"
 
 namespace {
 
@@ -51,6 +62,8 @@ std::string env(const char *k, const char *dflt)
 
 const std::string g_log_path = env("SID_EVENT_LOG", "/var/log/sid/events.jsonl");
 const std::string g_bpf_obj = env("SID_BPF_OBJ", "/usr/local/lib/sid/exec_trace.bpf.o");
+const std::string g_capture_backend = env("SID_CAPTURE_BACKEND", "fanotify");
+const std::string g_session_socket = env("SID_SESSION_SOCKET", "/run/sid/session.sock");
 const bool g_verbose = env("SID_VERBOSE", "0") == "1";  // multi-line banner per exec
 const auto g_timeout = std::chrono::milliseconds((long)(atof(env("SID_DECIDE_TIMEOUT", "2").c_str()) * 1000));
 
@@ -136,19 +149,29 @@ bool match(uint32_t tid, const std::string &file, exec_rec &out, const char *&ro
 // ---- answering the kernel, with a per-event deadline ------------------------
 
 struct Pending {
-	int ffd, efd;
+	int ffd = -1, efd = -1, nfd = -1;
+	uint64_t notif_id = 0;
 	Clock::time_point deadline;
 	std::atomic<bool> answered{false};
-	bool allow = false;
+	std::atomic<bool> allow{false};
 
 	// First caller answers the kernel; a late decision is dropped.
 	bool reply(bool a)
 	{
 		if (answered.exchange(true))
 			return false;
-		allow = a;
+		allow.store(a);
 		try {
-			fan::respond(ffd, efd, a);
+			if (nfd >= 0) {
+				seccomp_notif_resp response{};
+				response.id = notif_id;
+				response.error = a ? 0 : -EACCES;
+				if (a) response.flags = SECCOMP_USER_NOTIF_FLAG_CONTINUE;
+				if (ioctl(nfd, SECCOMP_IOCTL_NOTIF_SEND, &response) != 0 && errno != ENOENT)
+					say(std::string("seccomp response failed: ") + strerror(errno));
+			} else {
+				fan::respond(ffd, efd, a);
+			}
 		} catch (const std::exception &e) {
 			say(e.what());
 		}
@@ -328,7 +351,7 @@ void handle(int ffd, int efd, uint32_t tid)
 			ev.attack_id = d.attack_id;
 			ev.has_score = d.has_score;
 			ev.score = d.score;
-			if (!pend->reply(d.verdict == Verdict::Allow) && pend->allow != (d.verdict == Verdict::Allow)) {
+			if (!pend->reply(d.verdict == Verdict::Allow) && pend->allow.load() != (d.verdict == Verdict::Allow)) {
 				ev.verdict = "block";
 				ev.decided_by = "timeout";
 				ev.reason = "no answer in time; denied";
@@ -344,11 +367,155 @@ void handle(int ffd, int efd, uint32_t tid)
 	close(efd);
 }
 
+std::string read_remote(pid_t pid, uintptr_t address, size_t limit, bool *truncated = nullptr)
+{
+	std::string out;
+	if (!address) return out;
+	while (out.size() < limit) {
+		char chunk[256];
+		size_t want = std::min(sizeof(chunk), limit - out.size());
+		iovec local{chunk, want};
+		iovec remote{reinterpret_cast<void *>(address + out.size()), want};
+		ssize_t n = process_vm_readv(pid, &local, 1, &remote, 1, 0);
+		if (n <= 0) break;
+		const void *zero = memchr(chunk, 0, n);
+		size_t got = zero ? static_cast<const char *>(zero) - chunk : static_cast<size_t>(n);
+		out.append(chunk, got);
+		if (zero) return out;
+		if (static_cast<size_t>(n) < want) break;
+	}
+	if (truncated && out.size() >= limit) *truncated = true;
+	return out;
+}
+
+void copy_field(char *dst, size_t cap, const std::string &src, bool &truncated)
+{
+	const size_t n = std::min(cap - 1, src.size());
+	memcpy(dst, src.data(), n);
+	dst[n] = 0;
+	if (src.size() > n) truncated = true;
+}
+
+std::string proc_link(pid_t pid, const std::string &name)
+{
+	char buf[4096];
+	std::string path = "/proc/" + std::to_string(pid) + "/" + name;
+	ssize_t n = readlink(path.c_str(), buf, sizeof(buf));
+	return n > 0 ? std::string(buf, n) : std::string();
+}
+
+std::string exec_path(pid_t pid, const seccomp_notif &req, const std::string &name, bool execveat)
+{
+	const std::string proc = "/proc/" + std::to_string(pid);
+	if (!execveat) return name.empty() || name[0] == '/' ? proc + "/root" + name : proc + "/cwd/" + name;
+	const int dirfd = static_cast<int64_t>(req.data.args[0]);
+	const uint64_t flags = req.data.args[4];
+	if (name.empty() && (flags & AT_EMPTY_PATH))
+		return dirfd == AT_FDCWD ? proc + "/cwd" : proc + "/fd/" + std::to_string(dirfd);
+	if (!name.empty() && name[0] == '/') return proc + "/root" + name;
+	if (dirfd == AT_FDCWD) return proc + "/cwd/" + name;
+	return proc + "/fd/" + std::to_string(dirfd) + "/" + name;
+}
+
+bool read_exec_rec(pid_t pid, const seccomp_notif &req, exec_rec &rec, std::string &open_path)
+{
+	const bool at = req.data.nr == __NR_execveat;
+	const uintptr_t name_ptr = req.data.args[at ? 1 : 0];
+	const uintptr_t argv_ptr = req.data.args[at ? 2 : 1];
+	bool truncated = false;
+	const std::string path_arg = read_remote(pid, name_ptr, SID_ARGLEN - 1, &truncated);
+	std::string name = path_arg;
+	if (path_arg.empty() && !(at && (req.data.args[4] & AT_EMPTY_PATH))) return false;
+	if (name.empty()) {
+		int dirfd = static_cast<int64_t>(req.data.args[0]);
+		name = dirfd == AT_FDCWD ? proc_link(pid, "cwd") : proc_link(pid, "fd/" + std::to_string(dirfd));
+	}
+	copy_field(rec.path, sizeof(rec.path), name, truncated);
+	rec.is_execveat = at;
+	for (unsigned i = 0; i < SID_MAXARGS; ++i) {
+		uintptr_t arg_ptr = 0;
+		iovec local{&arg_ptr, sizeof(arg_ptr)};
+		iovec remote{reinterpret_cast<void *>(argv_ptr + i * sizeof(arg_ptr)), sizeof(arg_ptr)};
+		if (process_vm_readv(pid, &local, 1, &remote, 1, 0) != sizeof(arg_ptr) || !arg_ptr) break;
+		std::string arg = read_remote(pid, arg_ptr, SID_ARGLEN - 1, &truncated);
+		copy_field(rec.args[i], sizeof(rec.args[i]), arg, truncated);
+		++rec.argc;
+	}
+	if (rec.argc == SID_MAXARGS) rec.truncated = 1;
+	rec.truncated |= truncated;
+	open_path = exec_path(pid, req, path_arg, at);
+	return true;
+}
+
+void handle_seccomp(int nfd, const seccomp_notif &req)
+{
+	const uint32_t tid = req.pid;
+	auto t0 = Clock::now();
+	auto pend = std::make_shared<Pending>();
+	pend->nfd = nfd;
+	pend->notif_id = req.id;
+	pend->deadline = t0 + g_timeout;
+	{
+		std::lock_guard<std::mutex> g(g_pend_mu);
+		g_pending.push_back(pend);
+	}
+	int efd = -1;
+	try {
+		exec_rec rec{};
+		std::string target;
+		if (!read_exec_rec(tid, req, rec, target))
+			throw std::runtime_error("cannot read execve arguments from the session process");
+		efd = open(target.c_str(), O_RDONLY | O_CLOEXEC);
+		if (efd < 0)
+			throw std::runtime_error(std::string("cannot open requested executable ") + rec.path + ": " + strerror(errno));
+		Event ev;
+		ev.id = new_id();
+		ev.time = now_iso();
+		gather(ev, tid, efd, "program", &rec);
+
+		Decision d;
+		t_pending = pend.get();
+		try {
+			d = decide(ev);
+		} catch (const std::exception &e) {
+			d.verdict = Verdict::Block;
+			d.decided_by = "error";
+			d.reason = std::string("decision failed, failing closed: ") + e.what();
+		}
+		t_pending = nullptr;
+		ev.explored = d.explored;
+		ev.effects = d.effects;
+		ev.has_result = d.has_result;
+		ev.result_exit = d.result_exit;
+		ev.result_success = d.result_success;
+		ev.result_output = d.result_output;
+		ev.verdict = verdict_name(d.verdict);
+		ev.decided_by = d.decided_by;
+		ev.reason = d.reason;
+		ev.attack_id = d.attack_id;
+		ev.has_score = d.has_score;
+		ev.score = d.score;
+		if (!pend->reply(d.verdict == Verdict::Allow) && pend->allow.load() != (d.verdict == Verdict::Allow)) {
+			ev.verdict = "block";
+			ev.decided_by = "timeout";
+			ev.reason = "no answer in time; denied";
+		}
+		ev.latency_ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
+		emit(ev);
+	} catch (const std::exception &e) {
+		say(std::string("seccomp handler error for tid ") + std::to_string(tid) + ": " + e.what());
+		pend->reply(false);
+	}
+	if (efd >= 0) close(efd);
+	unregister(pend);
+}
+
 // ---- worker pool ---------------------------------------------------------------
 
 struct Job {
-	int ffd, efd;
-	uint32_t tid;
+	int ffd = -1, efd = -1, nfd = -1;
+	uint32_t tid = 0;
+	seccomp_notif notif{};
 };
 std::mutex g_q_mu;
 std::condition_variable g_q_cv;
@@ -364,8 +531,92 @@ void worker()
 			j = g_queue.front();
 			g_queue.pop_front();
 		}
-		handle(j.ffd, j.efd, j.tid);
+		if (j.nfd >= 0) handle_seccomp(j.nfd, j.notif);
+		else handle(j.ffd, j.efd, j.tid);
 	}
+}
+
+void listen_notifications(int nfd, SessionHello hello)
+{
+	bool bootstrap = true;
+	for (;;) {
+		seccomp_notif req{};
+		if (ioctl(nfd, SECCOMP_IOCTL_NOTIF_RECV, &req) != 0) {
+			if (errno == EINTR) continue;
+			if (errno != ENOENT && errno != EBADF)
+				say(std::string("seccomp listener stopped: ") + strerror(errno));
+			break;
+		}
+		if (bootstrap && req.pid == hello.pid && req.data.nr == __NR_execve) {
+			seccomp_notif_resp response{};
+			response.id = req.id;
+			response.flags = SECCOMP_USER_NOTIF_FLAG_CONTINUE;
+			if (ioctl(nfd, SECCOMP_IOCTL_NOTIF_SEND, &response) != 0 && errno != ENOENT)
+				say(std::string("cannot release the login shell: ") + strerror(errno));
+			bootstrap = false;
+			continue;
+		}
+		{
+			std::lock_guard<std::mutex> g(g_q_mu);
+			Job j;
+			j.nfd = nfd;
+			j.tid = req.pid;
+			j.notif = req;
+			g_queue.push_back(j);
+		}
+		g_q_cv.notify_one();
+	}
+	close(nfd);
+}
+
+void serve_session(int fd)
+{
+	// Only the setuid-root session launcher can connect to the mode-0600 socket.
+	SessionHello hello{};
+	iovec data{&hello, sizeof(hello)};
+	char control[CMSG_SPACE(sizeof(int))]{};
+	msghdr msg{};
+	msg.msg_iov = &data;
+	msg.msg_iovlen = 1;
+	msg.msg_control = control;
+	msg.msg_controllen = sizeof(control);
+	ssize_t n = recvmsg(fd, &msg, 0);
+	int nfd = -1;
+	for (cmsghdr *c = CMSG_FIRSTHDR(&msg); c; c = CMSG_NXTHDR(&msg, c))
+		if (c->cmsg_level == SOL_SOCKET && c->cmsg_type == SCM_RIGHTS && c->cmsg_len >= CMSG_LEN(sizeof(int))) {
+			memcpy(&nfd, CMSG_DATA(c), sizeof(nfd));
+			break;
+	}
+	close(fd);
+	if (n != static_cast<ssize_t>(sizeof(hello)) || hello.version != SID_SESSION_RPC_VERSION || hello.pid == 0 || nfd < 0) {
+		if (nfd >= 0) close(nfd);
+		say("rejected invalid SSH session registration");
+		return;
+	}
+	std::thread(listen_notifications, nfd, hello).detach();
+}
+
+int session_listener()
+{
+	sockaddr_un addr{};
+	if (g_session_socket.size() >= sizeof(addr.sun_path))
+		throw std::runtime_error("session socket path is too long");
+	std::string dir = g_session_socket.substr(0, g_session_socket.find_last_of('/'));
+	if (!dir.empty() && mkdir(dir.c_str(), 0755) != 0 && errno != EEXIST)
+		throw std::runtime_error("cannot create " + dir + ": " + strerror(errno));
+	unlink(g_session_socket.c_str());
+	int fd = socket(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0);
+	if (fd < 0) throw std::runtime_error(std::string("session socket: ") + strerror(errno));
+	addr.sun_family = AF_UNIX;
+	memcpy(addr.sun_path, g_session_socket.c_str(), g_session_socket.size() + 1);
+	if (bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0 ||
+	    chmod(g_session_socket.c_str(), 0600) != 0 || listen(fd, 64) != 0) {
+		int e = errno;
+		close(fd);
+		unlink(g_session_socket.c_str());
+		throw std::runtime_error(std::string("cannot listen on session socket: ") + strerror(e));
+	}
+	return fd;
 }
 
 void sd_notify(const char *msg)
@@ -429,37 +680,53 @@ int main()
 		if (!g_log)
 			throw std::runtime_error("cannot open " + g_log_path);
 
-		// Phase 0: set up. eBPF first, marks last, so nothing of ours can pause on itself.
-		libbpf_set_print(print_libbpf);
-		bpf_object *obj = bpf_object__open_file(g_bpf_obj.c_str(), nullptr);
-		if (!obj || libbpf_get_error(obj))
-			throw std::runtime_error("cannot open " + g_bpf_obj);
-		if (bpf_object__load(obj))
-			throw std::runtime_error("loading the eBPF object failed");
-		bpf_program *prog;
-		bpf_object__for_each_program(prog, obj)
-		{
-			bpf_link *l = bpf_program__attach(prog);
-			if (!l || libbpf_get_error(l))
-				throw std::runtime_error(std::string("attaching ") + bpf_program__name(prog) + " failed");
+		const bool session_backend = g_capture_backend == "seccomp";
+		if (!session_backend) {
+			// Phase 0: eBPF first, fanotify marks last, so nothing of ours pauses itself.
+			libbpf_set_print(print_libbpf);
+			bpf_object *obj = bpf_object__open_file(g_bpf_obj.c_str(), nullptr);
+			if (!obj || libbpf_get_error(obj))
+				throw std::runtime_error("cannot open " + g_bpf_obj);
+			if (bpf_object__load(obj))
+				throw std::runtime_error("loading the eBPF object failed");
+			bpf_program *prog;
+			bpf_object__for_each_program(prog, obj)
+			{
+				bpf_link *l = bpf_program__attach(prog);
+				if (!l || libbpf_get_error(l))
+					throw std::runtime_error(std::string("attaching ") + bpf_program__name(prog) + " failed");
+			}
+			int map_fd = bpf_object__find_map_fd_by_name(obj, "rb");
+			ring_buffer *rb = ring_buffer__new(map_fd, on_record, nullptr, nullptr);
+			if (!rb)
+				throw std::runtime_error("ring_buffer__new failed");
+			std::thread([rb] {
+				for (;;)
+					ring_buffer__poll(rb, 100);
+			}).detach();
+			say("eBPF exec recorder attached");
+		} else {
+			say("Docker SSH session exec notifications enabled");
 		}
-		int map_fd = bpf_object__find_map_fd_by_name(obj, "rb");
-		ring_buffer *rb = ring_buffer__new(map_fd, on_record, nullptr, nullptr);
-		if (!rb)
-			throw std::runtime_error("ring_buffer__new failed");
-		std::thread([rb] {
-			for (;;)
-				ring_buffer__poll(rb, 100);
-		}).detach();
-		say("eBPF exec recorder attached");
 
 		decide_init();
 		say("indexed " + std::to_string(load_package_files()) + " package files");
 
-		int ffd = fan::init();
 		for (int i = 0; i < kWorkers; i++)
 			std::thread(worker).detach();
 		std::thread(watchdog).detach();
+		if (session_backend) {
+			int sfd = session_listener();
+			say("capture ACTIVE for SSH session process trees via " + g_session_socket +
+			    "; events -> " + g_log_path);
+			sd_notify("READY=1");
+			for (;;) {
+				int client = accept4(sfd, nullptr, nullptr, SOCK_CLOEXEC);
+				if (client < 0) { if (errno == EINTR) continue; throw std::runtime_error(std::string("session accept: ") + strerror(errno)); }
+				std::thread(serve_session, client).detach();
+			}
+		}
+		int ffd = fan::init();
 
 		auto marked = fan::mark_all(ffd, say);
 		if (marked.empty()) {  // protecting nothing must never look like success
@@ -482,13 +749,13 @@ int main()
 				}
 				{
 					std::lock_guard<std::mutex> g(g_q_mu);
-					g_queue.push_back({ffd, p.efd, p.tid});
+				g_queue.push_back({ffd, p.efd, -1, p.tid});
 				}
 				g_q_cv.notify_one();
 			}
 		}
 	} catch (const std::exception &e) {
 		fprintf(stderr, "sid-daemon: fatal: %s\n", e.what());
-		return 1;
+		return g_capture_backend == "seccomp" ? 2 : 1;
 	}
 }

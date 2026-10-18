@@ -15,3 +15,8 @@ void decide_init();
 // Defined by the daemon; a no-op outside a decide() call.
 #include <chrono>
 void extend_deadline(std::chrono::milliseconds from_now);
+
+// Write a "hold" event line to the event log now, so the dashboard shows the
+// pending command before decide() blocks waiting for a person. The later final
+// line (same id) settles it. Defined by the daemon.
+void emit_hold(const Event &ev);

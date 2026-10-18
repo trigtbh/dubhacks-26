@@ -12,6 +12,7 @@
 #
 # Env overrides: SSH_PORT (2222), DASHBOARD_PORT (8080; both fall back to free ports if taken), SANDBOX_MEMORY (8g), SANDBOX_CPUS (4).
 # SID_LAYA_CHECKPOINT selects a local checkpoint to mount read-only for inference.
+# The default is the published demo test checkpoint.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -81,7 +82,7 @@ fi
 (( rebuild )) && dk rm -f "$NAME" >/dev/null 2>&1 || true
 
 run_container() {  # $1, $2: host side of the ssh and dashboard port mappings
-    local checkpoint="${SID_LAYA_CHECKPOINT:-$ROOT/.data/pilot-v2/finetune-04/checkpoint}"
+    local checkpoint="${SID_LAYA_CHECKPOINT:-$ROOT/.data/runs/laya-demo-test-01/checkpoint}"
     local model_mount=()
     if [[ -d "$checkpoint" ]]; then
         # The repository's .data is often a symlink outside the workspace mount.

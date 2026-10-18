@@ -14,6 +14,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import shlex
 from collections import Counter, defaultdict
@@ -240,6 +241,30 @@ def candidates(seed: dict, prepared: dict, salt: int, variants: int):
                            "source_command_at_limit": len(seed["command"]) >= seeds.MAX_CMD,
                            "history_at_limit": any(len(h) >= 200 for h in seed.get("history", []))},
         }
+
+
+def pick_device(requested="auto"):
+    """cuda, then Apple's mps, then cpu; an explicit request must be available."""
+    os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")  # before torch loads: ops MPS lacks run on the CPU
+    import torch
+    have = {"cuda": torch.cuda.is_available(), "mps": torch.backends.mps.is_available(), "cpu": True}
+    if requested == "auto":
+        requested = next(d for d in ("cuda", "mps", "cpu") if have[d])
+    if not have[requested]:
+        raise SystemExit(f"device {requested} is not available on this machine")
+    return requested
+
+
+def sync_device(device):
+    import torch
+    if device in ("cuda", "mps"):
+        getattr(torch, device).synchronize()
+
+
+def device_name(device):
+    import platform
+    import torch
+    return torch.cuda.get_device_name() if device == "cuda" else f"{device} ({platform.processor() or platform.machine()})"
 
 
 def write_json(file, row):

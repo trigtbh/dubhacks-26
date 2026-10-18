@@ -1,0 +1,150 @@
+/* Shapes (src/shapes.js). Colour comes from tokens, motion is class driven and limited to transform and
+   opacity, every duration is 300 ms or less except the ring echo and the slow ornament rotation. */
+
+/* Paint modes shared by every drawn shape. */
+.sh-f { fill: currentColor; }
+.sh-s { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: miter; }
+.sh-d { stroke-dasharray: 2 1.6; }
+.sh-eo { fill-rule: evenodd; }
+.sh-faint { opacity: .38; }
+.sh-bold { stroke-width: 2.4; }
+.sh-sudo .sh-s, .sh-caps .sh-s, .sh-hex .sh-s { stroke-width: 1; }
+
+/* Sizes. Glyphs carry width and height attributes; these classes override them. */
+.sh-glyph, .sh-op { display: inline-block; flex: none; vertical-align: middle; overflow: visible; }
+.sh-tern, .sh-sudo, .sh-caps, .sh-hex, .sh-hist { display: block; flex: none; overflow: visible; }
+.sh-xs { width: 12px; height: 12px; }
+.sh-sm { width: 16px; height: 16px; }
+.sh-md { width: 20px; height: 20px; }
+.sh-lg { width: 28px; height: 28px; }
+.sh-xl { width: 44px; height: 44px; }
+
+/* Status glyphs. One path whose d is set per verdict, so a verdict change morphs it; the path attribute is the
+   fallback where CSS d: is unsupported. The same morph is applied to Crystal's chip glyph. */
+.sh-gs path, .cr-glyph path { transition: d .3s cubic-bezier(.6, 0, .2, 1); }
+.sh-gs--allow path { d: path("M0.53 6.07 L3.23 8.77 L4.57 7.43 L1.87 4.73 Z M4.62 8.71 L9.62 2.81 L8.18 1.59 L3.18 7.49 Z"); }
+.sh-gs--hold path  { d: path("M1.60 1.00 L1.60 9.00 L4.00 9.00 L4.00 1.00 Z M6.00 1.00 L6.00 9.00 L8.40 9.00 L8.40 1.00 Z"); }
+.sh-gs--block path { d: path("M0.89 2.31 L7.69 9.11 L9.11 7.69 L2.31 0.89 Z M7.69 0.89 L0.89 7.69 L2.31 9.11 L9.11 2.31 Z"); }
+.sh-spin { animation: sh-spin 1s steps(6) infinite; }
+@keyframes sh-spin { to { transform: rotate(360deg); } }
+
+/* Tooltip: an HTML wrapper with data-tip, shown on hover and keyboard focus. */
+.sh-tip { position: relative; display: inline-flex; align-items: center; vertical-align: middle; color: var(--ink); }
+.sh-tip::after {
+  content: attr(data-tip);
+  position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 40;
+  width: max-content; max-width: 36ch; padding: 4px 8px;
+  background: var(--plate); color: var(--ink); border: 1px solid var(--line-strong);
+  font: 400 12px/16px var(--font-sans); letter-spacing: 0; text-transform: none; white-space: normal; overflow-wrap: anywhere;
+  opacity: 0; pointer-events: none;
+  transition: opacity .12s;
+}
+.sh-tip:hover::after, .sh-tip:focus-visible::after { opacity: 1; }
+.sh-tip[data-tip=""]::after { display: none; }
+.sh-tip--r::after { left: auto; right: 0; }
+
+/* Ternary. Hold on top, allow bottom left, block bottom right, the dot placed by the model's probabilities. */
+.sh-tern .sh-l { stroke: var(--line-strong); }
+.sh-tern .sh-in { stroke: var(--lattice); }
+.sh-va { fill: var(--st-allow-edge); }
+.sh-vh { fill: var(--st-hold-edge); }
+.sh-vb { fill: var(--st-block-edge); }
+.sh-dot {
+  fill: var(--ink); stroke: var(--ground); stroke-width: 1.2; paint-order: stroke;
+  transform: translate(calc(var(--x) * 1px), calc(var(--y) * 1px));
+  transition: transform .3s cubic-bezier(.6, 0, .2, 1);
+}
+.sh-dot.sh-hide { opacity: 0; }
+
+/* Path segments: slanted parallelograms. The skewed plate is ::before, the tooltip is ::after. */
+.sh-path { display: inline-flex; align-items: center; max-width: 100%; min-width: 0; padding-left: 6px; }
+.sh-seg {
+  --n: 4;
+  position: relative; flex: 0 1 auto; height: 20px; min-width: 22px; margin-left: -6px;
+  width: calc(var(--n) * 1ch + 26px);
+  font: 500 12px/20px var(--font-mono); color: var(--ink-muted);
+}
+.sh-seg::before {
+  content: ""; position: absolute; inset: 0; z-index: 0;
+  background: var(--plate); border: 1px solid var(--line-strong); transform: skewX(-20deg);
+}
+.sh-seg > span { position: relative; z-index: 1; flex: 1; min-width: 0; padding: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-seg.sh-last { color: var(--ink); }
+.sh-seg.sh-last::before { border-color: var(--ink-muted); }
+.sh-gap { margin-left: 2px; color: var(--ink-muted); }
+
+/* History ticks. */
+.sh-hist .sh-f { fill: var(--ink-muted); }
+.sh-hist .sh-hi { fill: var(--ink); stroke: var(--ink); stroke-width: .8; stroke-linejoin: round; }
+
+/* File ops: grayscale glyphs. Motion starts when .is-new is on the glyph or on a row that contains it. */
+.sh-op { color: var(--ink); }
+.sh-op--create.is-new, .is-new .sh-op--create { animation: sh-pop .3s cubic-bezier(.3, 1.6, .5, 1) both; }
+.sh-op--modify.is-new, .is-new .sh-op--modify { animation: sh-flash .3s linear both; }
+.sh-op--modify path:nth-child(2) { transform-box: view-box; transform-origin: 50% 50%; }
+.sh-op--modify.is-new path:nth-child(2), .is-new .sh-op--modify path:nth-child(2) { animation: sh-tick .3s cubic-bezier(.6, 0, .2, 1) both; }
+.sh-op--delete path:nth-child(2) { transform-box: view-box; transform-origin: 2.5px 13.5px; }
+.sh-op--delete.is-new path:nth-child(2), .is-new .sh-op--delete path:nth-child(2) { animation: sh-strike .25s cubic-bezier(.6, 0, .2, 1) both; }
+.is-new:has(.sh-op--delete) { animation: sh-drop .3s .25s both; }
+.sh-op--move.is-new, .is-new .sh-op--move { animation: sh-slide .3s cubic-bezier(.2, .7, .2, 1) both; }
+.sh-op--chmod.is-new path, .is-new .sh-op--chmod path { animation: sh-blink .3s linear both; }
+.sh-op--chmod path:nth-child(2) { animation-delay: .06s !important; }
+.sh-op--chmod path:nth-child(3) { animation-delay: .12s !important; }
+@keyframes sh-pop { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sh-flash { 0% { opacity: .15; } 35% { opacity: 1; } 55% { opacity: .5; } 100% { opacity: 1; } }
+@keyframes sh-tick { from { opacity: .2; } to { opacity: 1; } }
+@keyframes sh-strike { from { opacity: .2; } to { opacity: 1; } }
+@keyframes sh-drop { from { opacity: 1; } to { opacity: .5; } }
+@keyframes sh-slide { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sh-blink { 0% { opacity: 1; } 30% { opacity: .1; } 60% { opacity: 1; } 100% { opacity: 1; } }
+
+/* Countdown ring. Colour is currentColor: the stage sets it. Wedge 0 is at twelve o'clock, wedges deplete from the end. */
+.sh-ring { display: block; width: 100%; height: auto; aspect-ratio: 1; color: var(--ink); overflow: visible; }
+.sh-w {
+  fill: currentColor; opacity: var(--o, 1);
+  transition: opacity .3s;
+}
+.sh-w.off { opacity: .14; }
+.sh-rl { fill: none; stroke: currentColor; stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .5; }
+.sh-pulse { fill: none; stroke: currentColor; stroke-width: 1.5; vector-effect: non-scaling-stroke; opacity: 0; }
+.sh-pulse.p0 { animation: sh-echo-a .7s cubic-bezier(.2, .7, .2, 1); }
+.sh-pulse.p1 { animation: sh-echo-b .7s cubic-bezier(.2, .7, .2, 1); }
+@keyframes sh-echo-a { from { opacity: .6; } to { opacity: 0; } }
+@keyframes sh-echo-b { from { opacity: .6; } to { opacity: 0; } }
+/* orbit: one bright wedge with a short tail circling the ring, wedge by wedge. */
+.sh-ring.orbit .sh-w { animation: sh-orbit 2.4s linear infinite; animation-delay: calc(var(--i) * -50ms); }
+@keyframes sh-orbit {
+  0% { opacity: 1; }
+  3% { opacity: .7; }
+  12%, 100% { opacity: .14; }
+}
+/* broken: no report or no daemon. Some wedges disappear to break the ring. */
+.sh-ring.broken .sh-w:nth-child(11n+6) { opacity: 0; }
+.sh-ring.broken .sh-rl { stroke-dasharray: 5 4; }
+
+/* Ornaments. */
+.sh-orn { display: block; width: 100%; height: auto; overflow: visible; }
+.sh-l { fill: none; stroke: var(--lattice); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.sh-l.sh-hi { stroke: var(--ink-muted); }
+.sh-fill { fill: var(--lattice); opacity: .6; }
+.sh-fill.sh-hi { fill: var(--ink-muted); opacity: .9; }
+.sh-rot { transform-box: view-box; transform-origin: 50% 50%; animation: sh-spin calc(var(--d, 120) * 1s) linear infinite; }
+.sh-rev { animation-direction: reverse; }
+.sh-seam { display: block; flex: none; color: var(--ink-muted); overflow: visible; }
+
+/* Hatch for system states: neutral stripes, never a status colour. */
+.sh-hatch { background-image: repeating-linear-gradient(135deg, var(--lattice) 0 1px, transparent 1px 8px); }
+.sh-hatch--strong { background-image: repeating-linear-gradient(135deg, var(--line-strong) 0 1px, transparent 1px 8px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-spin, .sh-rot, .sh-pulse, .sh-ring.orbit .sh-w { animation: none; }
+  .sh-op, .sh-op *, .is-new:has(.sh-op--delete) { animation: none !important; }
+  .sh-ring.orbit .sh-w:nth-child(-n+6) { opacity: 1; }
+  .sh-gs path, .cr-glyph path { transition: none; }
+  .sh-tip::after { transition: none; }
+}
+@media (forced-colors: active) {
+  .sh-tip::after { background: Canvas; color: CanvasText; border-color: CanvasText; }
+  .sh-seg::before { border-color: CanvasText; background: Canvas; }
+  .sh-va, .sh-vh, .sh-vb, .sh-dot { fill: CanvasText; }
+}

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>sid</title>
+<link rel="icon" href="data:,">
+<link rel="preload" href="fonts/Syne-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/TASAExplorer-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/CommitMono-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="app.css">
+<script src="app.js" defer></script>
+</head>
+<body class="cr-root">
+<div id="app">
+  <header id="bar"></header>
+  <div id="load" class="load" role="progressbar" aria-label="Connecting to sid"><i></i></div>
+  <main id="wall">
+    <nav id="feed" aria-label="Commands"></nav>
+    <section id="right">
+      <div id="stage" aria-label="Command"></div>
+    </section>
+  </main>
+</div>
+<p class="sr" id="say" role="status" aria-live="polite"></p>
+<p class="sr" id="alert" role="alert" aria-live="assertive"></p>
+</body>
+</html>

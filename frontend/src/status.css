@@ -1,0 +1,47 @@
+/* Status tokens and the overrides that map Crystal's components onto them.
+   Red is blocked, amber is held, green is allowed. Red derives from Crystal's rose, green from its teal,
+   and amber is the one new hue. The vendored files in design/ are not edited; every override is here.
+   Red, amber and green mean a verdict and nothing else: privilege marks, file operations, streams and
+   system states use ink, grayscale or hatching. */
+:root, [data-theme="night"] {
+  --st-block: #e5484d; --st-on-block: #0e0f10; --st-block-ink: #f0686d; --st-block-edge: #e5484d;
+  --st-hold:  #f2b134; --st-on-hold:  #0e0f10; --st-hold-ink:  #f2b134; --st-hold-edge:  #f2b134;
+  --st-allow: #3fc27c; --st-on-allow: #0e0f10; --st-allow-ink: #3fc27c; --st-allow-edge: #3fc27c;
+  --plate: rgba(14, 15, 16, .86);
+  --io-err: #d6a0b4;            /* stderr: a desaturated rose, not a status hue */
+  --focus: #e6e3dc;             /* Crystal's teal ring would now read as "allowed" */
+}
+[data-theme="paper"] {
+  --st-block: #b8283a; --st-on-block: #ffffff; --st-block-ink: #b8283a; --st-block-edge: #b8283a;
+  --st-hold:  #e9a21a; --st-on-hold:  #141414; --st-hold-ink:  #8a5600; --st-hold-edge:  #9a6200;
+  --st-allow: #1a7a45; --st-on-allow: #ffffff; --st-allow-ink: #16693c; --st-allow-edge: #1a7a45;
+  --plate: rgba(242, 240, 234, .88);
+  --io-err: #8f3a59;
+}
+
+/* Verdict chip: allow stays an outlined green so it recedes. */
+.cr-verdict--allow { --edge: var(--st-allow-edge); --fill: var(--surface); color: var(--st-allow-ink); }
+.cr-verdict--hold  { --edge: var(--st-hold-edge);  --fill: var(--st-hold);  color: var(--st-on-hold); }
+.cr-verdict--block { --edge: var(--st-block-edge); --fill: var(--st-block); color: var(--st-on-block); }
+
+.cr-btn--approve { background: var(--st-allow); color: var(--st-on-allow); border-color: var(--st-allow); }
+.cr-btn--deny    { background: var(--st-block); color: var(--st-on-block); border-color: var(--st-block); }
+
+.cr-hold { --edge: var(--st-hold-edge); }
+.cr-hold__count { color: var(--st-hold-ink); }
+.cr-hold__bar > i { background: var(--st-hold); }
+
+.cr-row--block .cr-reason, .cr-effects .hit { color: var(--st-block-ink); }
+.cr-row--hold .cr-reason { color: var(--st-hold-ink); }
+
+.cp .cp-accent { fill: var(--st-hold); }
+.cp .cp-accent-line { stroke: var(--st-hold-ink); }
+.cp .cp-alert { fill: var(--st-block); }
+
+/* System states are grayscale, never a status color. */
+.cr-state--error { border-color: var(--line-strong); }
+.cr-state--error h4 { color: var(--ink); }
+
+/* The ground-colored shadow fills the offset gap so the ring stays visible over a gradient. */
+.cr-root :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; box-shadow: 0 0 0 2px var(--ground); }
+

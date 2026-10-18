@@ -1,0 +1,130 @@
+/* Crystal components. Plain CSS, no framework. Every value reads a token.
+   Fonts come from tokens.css (@font-face for the files in fonts/). */
+.cr-root {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 22px;
+  padding: var(--space-4);
+}
+.cr-root :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.cr-mono { font-family: var(--font-mono); }
+.cr-muted { color: var(--ink-muted); }
+/* Facet cut: the shape motif. The edge is painted as a layer under a 1px-inset fill,
+   so the border follows the cut diagonal too. Set --cut, --edge and --fill. */
+.cr-cut {
+  --cut: var(--cut-md); --edge: var(--line-strong); --fill: var(--surface);
+  position: relative; isolation: isolate; border: 0 !important;
+  background: var(--edge);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+  transition: background-color .3s;
+}
+.cr-cut::before {
+  content: ""; position: absolute; inset: 1px; z-index: -1; background: var(--fill);
+  clip-path: polygon(0 0, calc(100% - var(--cut) + 0.59px) 0, 100% calc(var(--cut) - 0.59px), 100% 100%, 0 100%);
+  transition: background-color .3s;
+}
+/* Verdict chip. The glyph is one path whose shape is set per verdict, so a
+   verdict change morphs the glyph (check, pause, cross, diamond). */
+.cr-verdict {
+  --cut: var(--cut-sm);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 92px; padding: 4px var(--space-2);
+  font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
+  border-radius: 0; transition: color .3s;
+}
+.cr-glyph { width: 10px; height: 10px; flex: none; overflow: visible; }
+.cr-glyph path { fill: currentColor; transition: d .45s cubic-bezier(.6,0,.2,1); }
+.cr-verdict--allow { --edge: var(--allow-ink); --fill: var(--surface); color: var(--allow-ink); }
+.cr-verdict--hold { --edge: var(--teal); --fill: var(--teal); color: var(--on-teal); }
+.cr-verdict--block { --edge: var(--rose); --fill: var(--rose); color: var(--on-rose); }
+.cr-verdict--explore { --edge: var(--teal-ink); --fill: var(--surface-raised); color: var(--teal-ink); }
+.cr-verdict--allow .cr-glyph path { d: path("M0.53 6.07 L3.23 8.77 L4.57 7.43 L1.87 4.73 Z M4.62 8.71 L9.62 2.81 L8.18 1.59 L3.18 7.49 Z"); }
+.cr-verdict--hold .cr-glyph path { d: path("M1.60 1.00 L1.60 9.00 L4.00 9.00 L4.00 1.00 Z M6.00 1.00 L6.00 9.00 L8.40 9.00 L8.40 1.00 Z"); }
+.cr-verdict--block .cr-glyph path { d: path("M0.89 2.31 L7.69 9.11 L9.11 7.69 L2.31 0.89 Z M7.69 0.89 L0.89 7.69 L2.31 9.11 L9.11 2.31 Z"); }
+.cr-verdict--explore .cr-glyph path { d: path("M5.00 0.60 L9.40 5.00 L5.00 9.40 L0.60 5.00 Z M5.00 3.20 L3.20 5.00 L5.00 6.80 L6.80 5.00 Z"); }
+.cr-verdict--explore .cr-glyph { animation: cr-spin 2.4s cubic-bezier(.6,0,.2,1) infinite; }
+@keyframes cr-spin { to { transform: rotate(180deg); } }
+@media (prefers-reduced-motion: reduce) { .cr-verdict--explore .cr-glyph { animation: none; } .cr-glyph path { transition: none; } }
+/* Feed and rows */
+.cr-feed { background: var(--surface); border: 1px solid var(--line-strong); }
+.cr-row {
+  display: grid; grid-template-columns: 116px minmax(0, 1fr) auto; gap: var(--space-3); align-items: start;
+  width: 100%; padding: var(--space-3) var(--space-4); text-align: left;
+  background: transparent; color: inherit; font: inherit; cursor: pointer;
+  border: 0; border-bottom: 1px solid var(--line);
+}
+.cr-row:last-child { border-bottom: 0; }
+.cr-row:hover { background: var(--surface-raised); }
+.cr-row[aria-current="true"] { background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.cr-argv { display: block; font-family: var(--font-mono); font-size: 13px; line-height: 20px; font-weight: 500; overflow-wrap: anywhere; }
+.cr-row--allow .cr-argv { color: var(--ink-muted); }
+.cr-meta { display: block; margin-top: 2px; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.cr-code { font-family: var(--font-mono); font-size: .92em; color: var(--ink); }
+.cr-meta .cr-code { color: inherit; }
+.cr-reason[hidden] { display: none; }
+.cr-reason { display: block; margin-top: var(--space-1); font-size: 14px; line-height: 20px; }
+.cr-row--block .cr-reason { color: var(--rose-ink); }
+.cr-row--hold .cr-reason { color: var(--teal-ink); }
+.cr-time { font-family: var(--font-mono); font-size: 12px; color: var(--ink-muted); white-space: nowrap; }
+/* Feed states */
+.cr-state { padding: var(--space-4); border: 1px solid var(--line); background: var(--surface); color: var(--ink-muted); }
+.cr-state h4 { margin: 0 0 2px; font-size: 15px; line-height: 22px; font-weight: 600; color: var(--ink); }
+.cr-state p { margin: 0; }
+.cr-state--error { border-color: var(--rose); }
+.cr-state--error h4 { color: var(--rose-ink); }
+.cr-state .cr-art { height: 40px; margin-bottom: var(--space-3); overflow: hidden; }
+.cr-loading { height: 2px; background: var(--line); overflow: hidden; margin-top: var(--space-3); }
+.cr-loading::after { content: ""; display: block; width: 30%; height: 100%; background: var(--ink-muted); animation: cr-slide 1.2s ease-in-out infinite; }
+@keyframes cr-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .cr-loading::after { animation: none; width: 100%; opacity: .5; } }
+/* Hold card */
+.cr-hold { --cut: var(--cut-md); --edge: var(--teal); --fill: var(--surface); padding: var(--space-4); }
+.cr-hold__head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.cr-hold__count { font-family: var(--font-mono); font-size: 20px; line-height: 24px; font-weight: 500; color: var(--teal-ink); }
+.cr-hold__bar { height: 4px; background: var(--line); margin: var(--space-3) 0; }
+.cr-hold__bar > i { display: block; height: 100%; background: var(--teal); transition: width 1s linear; }
+.cr-hold__actions { display: flex; gap: var(--space-2); margin-top: var(--space-4); flex-wrap: wrap; }
+.cr-hold__done { margin-top: var(--space-3); font-weight: 600; }
+/* Effects: what a command would do, one plain sentence per line. */
+.cr-effects { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); font-size: 14px; line-height: 20px; }
+.cr-effects .hit { color: var(--rose-ink); }
+.cr-effects .hit .cr-code { color: inherit; }
+/* Buttons */
+.cr-btn {
+  min-height: 44px; padding: 0 var(--space-4);
+  font-family: var(--font-sans); font-size: 15px; font-weight: 700;
+  border-radius: var(--radius-sm); border: 1px solid var(--line-strong);
+  background: transparent; color: var(--ink); cursor: pointer;
+}
+.cr-btn--approve { background: var(--teal); color: var(--on-teal); border-color: var(--teal); }
+.cr-btn--deny { background: var(--rose); color: var(--on-rose); border-color: var(--rose); }
+.cr-btn:hover { filter: brightness(1.08); }
+.cr-btn:disabled { opacity: .45; cursor: not-allowed; }
+/* Detail panel */
+.cr-detail { --cut: var(--cut-md); --edge: var(--line-strong); --fill: var(--surface); padding: var(--space-6); display: grid; gap: var(--space-4); }
+.cr-detail > * { margin: 0; }
+.cr-title { font-family: var(--font-display); font-size: 22px; line-height: 26px; font-weight: 600; margin: 0; }
+.cr-well { background: var(--surface-raised); padding: var(--space-3); font-family: var(--font-mono); font-size: 13px; line-height: 20px; overflow-wrap: anywhere; }
+.cr-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-3) var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--line); }
+.cr-fields div { min-width: 0; }
+.cr-fields dt { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--ink-muted); }
+.cr-fields dd { margin: 0; font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+/* Patterns (window.Crystal.patterns). Quiet: behind content, uses `lattice`.
+   Strong: standalone illustration, uses `ink-muted`. One accent per pattern. */
+.cp { display: block; }
+.cp--quiet { --cp-ink: var(--lattice); }
+.cp--strong { --cp-ink: var(--ink-muted); }
+.cp--quiet .cp-fill { opacity: .7; }
+.cp--strong .cp-fill { opacity: .6; }
+.cp .cp-line { fill: none; stroke: var(--cp-ink); stroke-width: 1; }
+.cp .cp-accent-line { fill: none; stroke: var(--teal-ink); stroke-width: 1.5; }
+.cp .cp-fill { fill: var(--cp-ink); }
+.cp .cp-accent { fill: var(--teal); }
+.cp .cp-alert { fill: var(--rose); }
+.cp .cp-edge { stroke: var(--cp-ink); stroke-width: .75; stroke-linejoin: round; }
+.cp .cp-face-top { fill: var(--surface-raised); }
+.cp .cp-face-left { fill: var(--surface); }
+.cp .cp-face-right { fill: var(--ground); }

@@ -5,8 +5,8 @@
 // decide(), and answer the kernel. Needs root. If this process dies the kernel
 // allows every paused program, so run it under systemd with Restart=always.
 //
-// This process must never exec anything (no system/popen/fork+exec): the child
-// would pause on itself.
+// Start the persistent model child before capture. During capture, model calls
+// use its private socket; our children (including simulations) bypass capture.
 #include <bpf/libbpf.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -158,6 +158,7 @@ struct Pending {
 
 std::mutex g_pend_mu;
 std::vector<std::shared_ptr<Pending>> g_pending;
+thread_local Pending *t_pending = nullptr;  // the event this worker is deciding
 
 void watchdog()
 {
@@ -245,20 +246,38 @@ bool is_loader(const std::string &file)
 
 uint32_t g_own_tgid;
 
-bool is_own(uint32_t tid)
+// One field of /proc/<pid>/status, or -1.
+long status_num(uint32_t pid, const char *key)
 {
-	FILE *f = fopen(("/proc/" + std::to_string(tid) + "/status").c_str(), "re");
+	FILE *f = fopen(("/proc/" + std::to_string(pid) + "/status").c_str(), "re");
 	if (!f)
-		return false;
+		return -1;
 	char line[256];
-	bool own = false;
+	size_t n = strlen(key);
+	long v = -1;
 	while (fgets(line, sizeof(line), f))
-		if (strncmp(line, "Tgid:", 5) == 0) {
-			own = (uint32_t)atoi(line + 5) == g_own_tgid;
+		if (strncmp(line, key, n) == 0 && line[n] == ':') {
+			v = atol(line + n + 1);
 			break;
 		}
 	fclose(f);
-	return own;
+	return v;
+}
+
+// Our own threads and descendants: the model worker and sid-explore simulations
+// must not pause on our decisions.
+bool is_own(uint32_t tid)
+{
+	long tgid = status_num(tid, "Tgid");
+	if (tgid == (long)g_own_tgid)
+		return true;
+	long p = tgid > 0 ? status_num((uint32_t)tgid, "PPid") : -1;
+	for (int depth = 0; p > 1 && depth < 64; depth++) {
+		if (p == (long)g_own_tgid)
+			return true;
+		p = status_num((uint32_t)p, "PPid");
+	}
+	return false;
 }
 
 void handle(int ffd, int efd, uint32_t tid)
@@ -288,6 +307,7 @@ void handle(int ffd, int efd, uint32_t tid)
 			gather(ev, tid, efd, role, matched ? &rec : nullptr);
 
 			Decision d;
+			t_pending = pend.get();
 			try {
 				d = decide(ev);
 			} catch (const std::exception &e) {  // fail closed
@@ -295,6 +315,13 @@ void handle(int ffd, int efd, uint32_t tid)
 				d.decided_by = "error";
 				d.reason = std::string("decision failed, failing closed: ") + e.what();
 			}
+			t_pending = nullptr;
+			ev.explored = d.explored;
+			ev.effects = d.effects;
+			ev.has_result = d.has_result;
+			ev.result_exit = d.result_exit;
+			ev.result_success = d.result_success;
+			ev.result_output = d.result_output;
 			ev.verdict = verdict_name(d.verdict);
 			ev.decided_by = d.decided_by;
 			ev.reason = d.reason;
@@ -369,6 +396,14 @@ int print_libbpf(enum libbpf_print_level lvl, const char *fmt, va_list ap)
 }
 
 }  // namespace
+
+void extend_deadline(std::chrono::milliseconds from_now)
+{
+	if (!t_pending)
+		return;
+	std::lock_guard<std::mutex> g(g_pend_mu);  // the watchdog reads it under this lock
+	t_pending->deadline = std::max(t_pending->deadline, Clock::now() + from_now);
+}
 
 int main()
 {

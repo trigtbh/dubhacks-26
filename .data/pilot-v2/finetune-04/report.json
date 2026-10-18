@@ -1,0 +1,252 @@
+{
+  "base_sha256_after": {
+    "model.safetensors": "9d628fd971b700382ac6f65920a86f149777b2e748e0c955fb3b19695aa8f204",
+    "rl_agent_config.json": "25061739243b617ad88d1219ba6f8a9c86c5881ca28df024fa2d9b3b2fcc30c6"
+  },
+  "base_sha256_before": {
+    "model.safetensors": "9d628fd971b700382ac6f65920a86f149777b2e748e0c955fb3b19695aa8f204",
+    "rl_agent_config.json": "25061739243b617ad88d1219ba6f8a9c86c5881ca28df024fa2d9b3b2fcc30c6"
+  },
+  "checkpoint_sha256": "86cb71e1c31d2632658741400a65663b14f8ab9fe1fb42c2720216e80a733433",
+  "class_balancing": "none (natural distribution; decided before results)",
+  "config": {
+    "amp": null,
+    "calib_frac": 0,
+    "calib_max": 400,
+    "calib_seed": 20260922,
+    "encoder_lr": 2.5e-05,
+    "epochs": 1,
+    "eval_data": "/homes/iws/tmoore23/dubhacks-26/.data/pilot-v2/release/validation.jsonl",
+    "freeze_encoder": false,
+    "grad_accum": 4,
+    "grad_clip": 1.0,
+    "gradient_checkpointing": null,
+    "head_lr": 0.0001,
+    "head_max_len": 256,
+    "instructions": null,
+    "label_column": "label",
+    "label_smoothing": 0.0,
+    "log_every": 10,
+    "loss": "soft-ce",
+    "max_len": 1024,
+    "micro_batch": 4,
+    "min_abstain_n": 10,
+    "min_lr": 1e-06,
+    "option_layout": null,
+    "question_id": "label",
+    "rl_samples": 4,
+    "seed": 42,
+    "shuffle_options": [
+      "choice"
+    ],
+    "sigma_end": 0.1,
+    "sigma_start": 0.4,
+    "target_error": 0.1,
+    "text_column": "text",
+    "w_rps": 1.0,
+    "w_sph": 0.75,
+    "weight_decay": 0.01
+  },
+  "dry_run": {
+    "calibration_items": 0,
+    "data": "/homes/iws/tmoore23/dubhacks-26/.data/pilot-v2/release/train.jsonl",
+    "effective_batch": 16,
+    "eval_data": "/homes/iws/tmoore23/dubhacks-26/.data/pilot-v2/release/validation.jsonl",
+    "eval_rows_read": 174,
+    "eval_skipped": {},
+    "eval_valid_items": 174,
+    "head_max_len": 256,
+    "max_len": 1024,
+    "optimizer_updates": 73,
+    "rows_read": 1165,
+    "skipped": {},
+    "train_items": 1165,
+    "valid_items": 1165
+  },
+  "experimental_only": true,
+  "gold_used_for_selection": false,
+  "gold_used_for_training": false,
+  "input_sha256": {
+    ".data/pilot-v2/candidates.jsonl": "e1eb3071b954aafc5260b486a59959ad3f0db22fb4d64e0293c56c3f430b617b",
+    ".data/pilot-v2/release/annotations.jsonl": "780d7860965701d6df16cd3e6533eb2d75a7b35bdebed39dd1ae06b92084758e",
+    ".data/pilot-v2/release/readiness.json": "e471d9d18604333efa5783c667e6457bda04ec494763ee3b4ea4fbc0160f7fb3",
+    ".data/pilot-v2/release/train.jsonl": "f8fe6c8268182cba206520f52f2f4e87cfe4d0b29631c1b4129d58d051a186c3",
+    ".data/pilot-v2/release/validation.jsonl": "1a1cfbbff3a5f76e2f71f79b92dba577f2e7ab4a8b6b6fb5745eabbc61476ee7",
+    "dataset/render.py": "b6ada42eb1fa6800f349c6a897bf658df5bc28d3094ae2d35c775fdf685e3162"
+  },
+  "labels": "owner-approved release; model-proposed/reviewed, harm facts not human-verified",
+  "micro_steps": 292,
+  "optimizer_updates": 73,
+  "preflight": {
+    "counts": {
+      "gold": {
+        "allow": 194,
+        "block": 4,
+        "hold": 188
+      },
+      "train": {
+        "allow": 586,
+        "block": 6,
+        "hold": 573
+      },
+      "validation": {
+        "allow": 101,
+        "block": 6,
+        "hold": 67
+      }
+    },
+    "gold_ids_in_train_or_validation": 0,
+    "labels_match_release_annotations": true,
+    "renderer_and_question_contract": "matched",
+    "split_leakage": 0,
+    "state_tokens_max_train_validation": 273
+  },
+  "production_checkpoint": false,
+  "training": {
+    "abstention_thresholds": {},
+    "calibration": {
+      "choice": {
+        "issues": [],
+        "items": 0,
+        "temperature": 1.0
+      },
+      "noul": {
+        "issues": [],
+        "items": 0,
+        "temperature": 1.0
+      },
+      "score": {
+        "issues": [],
+        "items": 0,
+        "temperature": 1.0
+      }
+    },
+    "calibration_items": 0,
+    "epoch_loss": [
+      0.6129534661463679
+    ],
+    "eval_items": 174,
+    "n_by_bucket": {},
+    "output_dir": ".data/pilot-v2/finetune-04/checkpoint",
+    "skipped": {},
+    "temperature": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "temperature_by_options": {},
+    "train_items": 1165,
+    "train_report": {
+      "abstention_thresholds": {},
+      "after": {
+        "accuracy": 0.7069,
+        "brier": 0.3834,
+        "brier_top1": 0.1812,
+        "by_type": {
+          "choice": {
+            "accuracy": 0.7069,
+            "brier": 0.3834,
+            "brier_top1": 0.1812,
+            "ece": 0.1307,
+            "items": 174,
+            "loss": 0.6667,
+            "mean_confidence": 0.8189
+          }
+        },
+        "ece": 0.1307,
+        "items": 174,
+        "loss": 0.6667,
+        "mean_confidence": 0.8189
+      },
+      "before": {
+        "accuracy": 0.4655,
+        "brier": 0.6514,
+        "brier_top1": 0.2566,
+        "by_type": {
+          "choice": {
+            "accuracy": 0.4655,
+            "brier": 0.6514,
+            "brier_top1": 0.2566,
+            "ece": 0.1567,
+            "items": 174,
+            "loss": 1.095,
+            "mean_confidence": 0.5298
+          }
+        },
+        "ece": 0.1567,
+        "items": 174,
+        "loss": 1.095,
+        "mean_confidence": 0.5298
+      },
+      "calibration": {
+        "choice": {
+          "issues": [],
+          "items": 0,
+          "temperature": 1.0
+        },
+        "noul": {
+          "issues": [],
+          "items": 0,
+          "temperature": 1.0
+        },
+        "score": {
+          "issues": [],
+          "items": 0,
+          "temperature": 1.0
+        }
+      },
+      "comparison": {
+        "delta_accuracy": 0.2414,
+        "delta_brier": -0.268,
+        "delta_brier_top1": -0.0754,
+        "delta_ece": -0.026,
+        "delta_loss": -0.4283,
+        "delta_mean_confidence": 0.2891
+      },
+      "eval_items": 174,
+      "eval_mode": "held_out",
+      "eval_source": "/homes/iws/tmoore23/dubhacks-26/.data/pilot-v2/release/validation.jsonl",
+      "is_held_out": true,
+      "note": "Metrics reflect independent held-out evaluation.",
+      "training": {
+        "amp": null,
+        "calib_frac": 0,
+        "calib_max": 400,
+        "calib_seed": 20260922,
+        "encoder_lr": 2.5e-05,
+        "epochs": 1,
+        "eval_data": "/homes/iws/tmoore23/dubhacks-26/.data/pilot-v2/release/validation.jsonl",
+        "freeze_encoder": false,
+        "grad_accum": 4,
+        "grad_clip": 1.0,
+        "gradient_checkpointing": null,
+        "head_lr": 0.0001,
+        "head_max_len": 256,
+        "instructions": null,
+        "label_column": "label",
+        "label_smoothing": 0.0,
+        "log_every": 10,
+        "loss": "soft-ce",
+        "max_len": 1024,
+        "micro_batch": 4,
+        "min_abstain_n": 10,
+        "min_lr": 1e-06,
+        "option_layout": null,
+        "question_id": "label",
+        "rl_samples": 4,
+        "seed": 42,
+        "shuffle_options": [
+          "choice"
+        ],
+        "sigma_end": 0.1,
+        "sigma_start": 0.4,
+        "target_error": 0.1,
+        "text_column": "text",
+        "w_rps": 1.0,
+        "w_sph": 0.75,
+        "weight_decay": 0.01
+      }
+    }
+  },
+  "training_seconds": 34.065114443947095
+}

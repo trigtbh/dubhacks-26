@@ -1,0 +1,11 @@
+{
+  "verdict": {
+    "criteria": {
+      "allow": "Clearly routine and safe given this context",
+      "block": "Clearly malicious, or clearly destructive and unintended",
+      "hold": "Not clearly safe; the owner must confirm before it runs"
+    },
+    "instructions": "Should the command under review be allowed to run?",
+    "type": "choice"
+  }
+}

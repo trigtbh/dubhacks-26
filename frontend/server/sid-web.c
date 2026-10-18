@@ -34,6 +34,7 @@
 #include <strings.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -82,7 +83,7 @@ typedef struct {
 static Client cl[MAXC];
 static char rbuf[CHUNK];
 
-static const char *root, *log_path, *decision_path, *proc_dir;
+static const char *root, *log_path, *decision_path, *proc_dir, *review_sock;
 static int log_fd = -1;
 static ino_t log_ino;
 static off_t log_size;
@@ -572,7 +573,7 @@ static void serve_file(Client *c, const char *path, int head)
 // clock is off and whether to offer Allow and Block at all.
 static size_t clock_frame(char *out, size_t cap)
 {
-	int ok = access(decision_path, W_OK) == 0;
+	int ok = review_sock && access(review_sock, F_OK) == 0;  // can we reach the daemon's review socket?
 	return (size_t)snprintf(out, cap, "event: clock\ndata: {\"now\":%lld,\"decide\":%s}\n\n", (long long)wall_ms(),
 				ok ? "true" : "false");
 }
@@ -619,6 +620,43 @@ static int is_json_type(const char *t)
 {
 	return strcasecmp(t, "application/json") == 0 || strcasecmp(t, "application/json; charset=utf-8") == 0 ||
 	       strcasecmp(t, "application/json;charset=utf-8") == 0;
+}
+
+// Send "VERB id\n" to the daemon's review socket and return 1 if it replied ok.
+// The id the page sends is the event id, which the daemon also uses as the review
+// id, so APPROVE/DENY address the right held command. A short, blocking round trip;
+// APPROVE/DENY answer immediately, and decisions are rare.
+static int sid_review(const char *verb, const char *id, char *err, size_t errlen)
+{
+	int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	if (fd < 0) {
+		snprintf(err, errlen, "socket: %s", strerror(errno));
+		return 0;
+	}
+	struct sockaddr_un sa = {0};
+	sa.sun_family = AF_UNIX;
+	snprintf(sa.sun_path, sizeof(sa.sun_path), "%s", review_sock ? review_sock : "");
+	int ok = 0;
+	if (connect(fd, (struct sockaddr *)&sa, sizeof(sa)) != 0) {
+		snprintf(err, errlen, "connect: %s", strerror(errno));
+	} else {
+		char req[64];
+		int rl = snprintf(req, sizeof(req), "%s %s\n", verb, id);
+		char buf[512];
+		ssize_t n;
+		if (write(fd, req, (size_t)rl) != rl)
+			snprintf(err, errlen, "write: %s", strerror(errno));
+		else if ((n = read(fd, buf, sizeof(buf) - 1)) <= 0)
+			snprintf(err, errlen, "no reply");
+		else {
+			buf[n] = 0;
+			ok = strstr(buf, "\"ok\":true") != NULL;
+			if (!ok)
+				snprintf(err, errlen, "%.120s", buf);
+		}
+	}
+	close(fd);
+	return ok;
 }
 
 // Checks in the order CONTRACT.md lists them. A browser always sends a Content-Type and
@@ -687,29 +725,9 @@ static void decide(Client *c)
 		}
 
 	if (!dup) {
-		struct sockaddr_in pa = {0};
-		socklen_t pl = sizeof(pa);
-		char ip[INET_ADDRSTRLEN] = "?", line[256];
-		if (getpeername(c->fd, (struct sockaddr *)&pa, &pl) == 0)
-			inet_ntop(AF_INET, &pa.sin_addr, ip, sizeof(ip));
-		int ll = snprintf(line, sizeof(line), "{\"v\":1,\"id\":\"%s\",\"verdict\":\"%s\",\"t\":%lld,\"peer\":\"%s:%u\"}\n",
-				  idv, allow ? "allow" : "block", (long long)wall_ms(), ip, ntohs(pa.sin_port));
-		struct stat ds;
-		const char *why = NULL;
-		ssize_t w;
-		int fd = open(decision_path, O_WRONLY | O_APPEND | O_CLOEXEC);
-		if (fd < 0)
-			why = strerror(errno);
-		else if (fstat(fd, &ds) != 0 || !S_ISREG(ds.st_mode))
-			why = "not a regular file";
-		else if (ds.st_size > DECIDE_MAX)
-			why = "file is full";
-		else if ((w = write(fd, line, (size_t)ll)) != ll)  // one write: the daemon never sees half a line
-			why = w < 0 ? strerror(errno) : "short write";
-		if (fd >= 0)
-			close(fd);
-		if (why) {
-			fprintf(stderr, "sid-web: cannot record a decision in %s: %s\n", decision_path, why);
+		char err[160] = "";
+		if (!sid_review(allow ? "APPROVE" : "DENY", idv, err, sizeof(err))) {
+			fprintf(stderr, "sid-web: cannot send a decision to %s: %s\n", review_sock ? review_sock : "(unset)", err);
 			jerr(c, 503, "Service Unavailable", "decisions unavailable");
 			return;
 		}
@@ -957,6 +975,7 @@ int main(void)
 	root = env("SID_WEB_ROOT", "dist");
 	log_path = env("SID_EVENT_LOG", "/var/log/sid/events.jsonl");
 	decision_path = env("SID_DECISION_LOG", "/var/log/sid/decisions.jsonl");
+	review_sock = env("SID_REVIEW_SOCK", "/run/sid/review.sock");  // decisions go here, to sid-daemon
 	proc_dir = env("SID_PROC_DIR", "/proc");
 	for (int i = 0; i < MAXC; i++)
 		cl[i].fd = -1;

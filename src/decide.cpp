@@ -44,7 +44,8 @@ Decision decide(const Event &ev)
 	// reaches: allow runs the command, block blocks it and severs the origin.
 	if (j.choice != JevChoice::Hold)
 		return decide_certain(ev, j, enforce_denial);
-	// Unsure: simulate the command and ask a person.
+	// Unsure: surface the pending command to the dashboard, then simulate and ask a person.
+	emit_hold(ev);
 	auto ttl = std::chrono::milliseconds((long)(atof(env("SID_REVIEW_TIMEOUT", "120").c_str()) * 1000));
 	return handle_unsure(ev, j, reviews(), run_explore, ttl, extend_deadline, enforce_denial);
 }

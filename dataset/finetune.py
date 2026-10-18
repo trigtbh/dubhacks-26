@@ -13,6 +13,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -126,6 +127,62 @@ def preflight(release: Path, pilot: Path, base: Path, max_len: int, extra=(), ex
             "renderer_and_question_contract": "matched"}
 
 
+def family_of(state):
+    """Command family of a rendered state (as curate.py groups them), or None if the command line is not parseable."""
+    m = re.match(r"command: (.*?)\nprogram: ", state, re.S)
+    return "family:" + c.digest(c.seeds.normalize(m.group(1))) if m else None
+
+
+def preflight_light(release: Path, base: Path, max_len: int, extra=(), extra_candidates=()) -> dict:
+    """Reduced checks for when the frozen candidates.jsonl is unavailable (--no-candidates).
+
+    Verifies ids, the serving question, labels against annotations and train/validation/gold overlap by id
+    and state hash. It cannot check family/unit/pair split leakage, which needs the candidates."""
+    annotations = {a["id"]: a for a in map(json.loads, (release / "annotations.jsonl").open())}
+    splits = {name: [json.loads(l) for l in (release / f"{name}.jsonl").open()] for name in ("train", "validation", "gold")}
+    from tokenizers import Tokenizer
+    tok = Tokenizer.from_file(str(base / "tokenizer/tokenizer.json"))
+    tok.no_truncation()
+    tok.no_padding()
+    tokens, counts, owner = [], {}, {}
+    for name, rows in splits.items():
+        if not rows or len({r["id"] for r in rows}) != len(rows):
+            raise ValueError(f"empty or duplicate ids in {name}")
+        for r in rows:
+            label, a = r["expected"]["verdict"], annotations.get(r["id"])
+            if r.get("questions") != {"verdict": c.renderer.VERDICT_QUESTION} or label not in LABELS:
+                raise ValueError(f"question/label differs from serving contract: {r['id']}")
+            if a is None or a.get("disposition") != "keep" or a.get("label") != label \
+                    or a.get("state_sha256") != c.digest(r["state"]):
+                raise ValueError(f"label/annotation inconsistency: {r['id']}")
+            for key in (("id", r["id"]), ("state", c.digest(r["state"]))):
+                if owner.setdefault(key, name) != name:
+                    raise ValueError(f"split overlap on {key[0]}: {r['id']}")
+        counts[name] = dict(collections.Counter(r["expected"]["verdict"] for r in rows))
+        if name != "gold":
+            tokens.extend(len(tok.encode(r["state"], add_special_tokens=False)) for r in rows)
+    if extra:
+        sources = {r["id"]: r for path in extra_candidates for r in map(json.loads, path.open())}
+        held_states = {k[1] for k, name in owner.items() if k[0] == "state" and name != "train"}
+        held_families = {family_of(r["state"]) for name in ("validation", "gold") for r in splits[name]} - {None}
+        if len({r["id"] for r in extra} | {r["id"] for r in splits["train"]}) != len(extra) + len(splits["train"]):
+            raise ValueError("extra rows repeat ids")
+        for row in extra:
+            source = sources.get(row["id"])
+            if source is None or source["state"] != row["state"] or c.renderer.render(source["event"]) != row["state"]:
+                raise ValueError(f"extra row not in its frozen candidates: {row['id']}")
+            if row.get("questions") != {"verdict": c.renderer.VERDICT_QUESTION} or row["expected"]["verdict"] not in LABELS:
+                raise ValueError(f"extra row question/label differs from serving contract: {row['id']}")
+            if c.digest(row["state"]) in held_states or source["split_family"] in held_families:
+                raise ValueError(f"extra row overlaps validation/gold by state or command family: {row['id']}")
+        counts["extra_train_unapproved"] = dict(collections.Counter(r["expected"]["verdict"] for r in extra))
+        tokens.extend(len(tok.encode(r["state"], add_special_tokens=False)) for r in extra)
+    if max(tokens) > max_len:
+        raise ValueError("train/validation state exceeds max_len")
+    return {"mode": "reduced (--no-candidates): family/unit/pair split leakage NOT checked", "counts": counts,
+            "state_tokens_max_train_validation": max(tokens), "labels_match_release_annotations": True}
+
+
 class Progress:
     """Tee trainer stdout to a log and a small JSON snapshot the monitor reads."""
 
@@ -189,6 +246,10 @@ def main():
     ap.add_argument("--train-encoder", action="store_true", help="also update encoder weights (default lr 2.5e-5)")
     ap.add_argument("--run", action="store_true")
     ap.add_argument("--no-demo", action="store_true", help="omit the synthetic demo training examples")
+    ap.add_argument("--no-candidates", action="store_true",
+                    help="run without the frozen pilot candidates.jsonl, using reduced preflight checks")
+    ap.add_argument("--device", choices=("auto", "cuda", "mps", "cpu"), default="auto",
+                    help="auto picks cuda, then Apple silicon (mps), then cpu")
     ap.add_argument("--extra-train", type=Path, action="append", default=[],
                     help="unapproved draft rows appended to train only (experimental)")
     ap.add_argument("--extra-candidates", type=Path, action="append", default=[],
@@ -216,10 +277,11 @@ def main():
                        "shared_command_families_with_regressions": bool(demo_train)},
               "input_sha256": {str(p.resolve()): sha(p) for p in (
                   args.release / "train.jsonl", args.release / "validation.jsonl", args.release / "annotations.jsonl",
-                  args.release / "readiness.json", args.pilot / "candidates.jsonl", Path(c.renderer.__file__),
+                  args.release / "readiness.json", *([] if args.no_candidates else [args.pilot / "candidates.jsonl"]), Path(c.renderer.__file__),
                   *args.extra_train, *args.extra_candidates,
                   *((demo.CASES, Path(demo.__file__)) if demo_train else ()))},
-              "preflight": preflight(args.release, args.pilot, args.base, 1024, extra, args.extra_candidates, demo_train)}
+              "preflight": (preflight_light(args.release, args.base, 1024, extra, args.extra_candidates) if args.no_candidates
+                            else preflight(args.release, args.pilot, args.base, 1024, extra, args.extra_candidates, demo_train))}
     train_path = args.release / "train.jsonl"
     if extra:
         report["labels"] += "; plus unapproved draft rows (model-proposed, partial review)"
@@ -249,7 +311,7 @@ def main():
         started = time.perf_counter()
         try:
             with contextlib.redirect_stdout(progress):
-                result = finetune(str(train_path), str(args.base), str(args.out / "checkpoint"), config, "cuda")
+                result = finetune(str(train_path), str(args.base), str(args.out / "checkpoint"), config, c.pick_device(args.device))
         except BaseException as e:
             progress.update(status="failed", error=repr(e))
             raise

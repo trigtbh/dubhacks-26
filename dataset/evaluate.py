@@ -99,6 +99,7 @@ def main():
     ap.add_argument("--candidates", type=Path, default=c.ROOT / ".data/pilot-v2/candidates.jsonl")
     ap.add_argument("--base", type=Path, default=c.ROOT / "models/laya/multilingual")
     ap.add_argument("--out", type=Path, required=True, help="new directory for predictions and report")
+    ap.add_argument("--device", choices=("auto", "cuda", "mps", "cpu"), default="auto")
     ap.add_argument("--splits", nargs="+", choices=["train", "validation", "gold"], default=["validation"])
     ap.add_argument("--annotations", nargs="*", type=Path, default=[])
     ap.add_argument("--scores", type=Path, help="reuse predictions; do not load the GPU model")
@@ -137,14 +138,15 @@ def main():
         tokens = [len(tok.encode(r["state"], add_special_tokens=False)) for r in chosen]
         if any(n > 1024 for n in tokens):
             raise ValueError("pilot exceeds 1024 state tokens; exclude or shorten and relabel")
+        device = c.pick_device(args.device)
         load_start = time.perf_counter()
-        agent = laya.load(str(args.base), device="cuda")
+        agent = laya.load(str(args.base), device=device)
         metadata["load_seconds"] = time.perf_counter() - load_start
         agent.predict(chosen[0]["state"], questions, max_len=1024)
-        torch.cuda.synchronize()
+        c.sync_device(device)
         start = time.perf_counter()
         results = agent.predict_batch([r["state"] for r in chosen], questions, batch_size=16, max_len=1024)
-        torch.cuda.synchronize()
+        c.sync_device(device)
         metadata["batch_seconds"] = time.perf_counter() - start
         predictions = []
         for row, result in zip(chosen, results, strict=True):
@@ -156,12 +158,12 @@ def main():
                                 "prediction": answer["choice"], "probabilities": probabilities})
         latency = []
         for row in chosen[:30]:
-            torch.cuda.synchronize()
+            c.sync_device(device)
             start = time.perf_counter()
             agent.predict(row["state"], questions, max_len=1024)
-            torch.cuda.synchronize()
+            c.sync_device(device)
             latency.append((time.perf_counter() - start) * 1000)
-        metadata.update(checkpoint=str(args.base), gpu=torch.cuda.get_device_name(),
+        metadata.update(checkpoint=str(args.base), gpu=c.device_name(device),
                         state_tokens_max=max(tokens), state_tokens_median=statistics.median(tokens),
                         latency_ms_p50=statistics.median(latency), latency_ms_p90=sorted(latency)[int(.9 * (len(latency) - 1))])
         for name in ("model.safetensors", "rl_agent_config.json"):

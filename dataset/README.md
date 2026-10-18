@@ -153,6 +153,16 @@ all three classes in each split. Disputes and malformed shell text remain exclud
 # Original approved pilot only.
 .venv/bin/python -I dataset/finetune.py --out .data/runs/laya-pilot-only --no-demo --run
 
+# Device: --device auto (default) picks cuda, then Apple silicon (mps), then cpu. On a Mac, pass
+# --device mps to require it; ops MPS lacks fall back to the CPU. evaluate.py takes the same flag.
+
+# crystal-pregame import (~/Projects/crystal-pregame/data/raw): 8,223 rule-labelled, training-only rows
+# in .data/pregame-v1 (allow 2,908 / hold 5,299 / block 16). Labels come from visible command text only,
+# not from the source's malicious/benign tag, and are `rule_proposed`: not model- or human-reviewed.
+.venv/bin/python -I dataset/pregame.py --out .data/pregame-v1
+.venv/bin/python -I dataset/finetune.py --out .data/runs/pregame-01 --device mps --no-candidates --train-encoder --run \
+  --extra-train .data/pregame-v1/train-proposed.jsonl --extra-candidates .data/pregame-v1/candidates.jsonl
+
 # Experimental: append unapproved draft rows to train only. Validation/gold stay approved,
 # and draft rows sharing a family, unit, pair or state with them are rejected.
 .venv/bin/python -I dataset/finetune.py --out .data/runs/laya-expansion-next --train-encoder --run \

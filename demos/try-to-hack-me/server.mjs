@@ -193,10 +193,9 @@ function proxyDashboard(req, res, url) {
 
 function localRequest(req, res, socket = false) {
   const host = req.headers.host || '';
-  const allowed = new Set([`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`]);
   const origin = req.headers.origin;
-  if (!allowed.has(host) || (origin && (() => {
-    try { const u = new URL(origin); return u.protocol !== 'http:' || u.host !== host; }
+  if (!allowedHosts.has(host) || (origin && (() => {
+    try { const u = new URL(origin); return !['http:', 'https:'].includes(u.protocol) || u.host !== host; }
     catch { return true; }
   })())) {
     if (socket) return false;
@@ -221,10 +220,15 @@ function mime(ext) {
   return ({ '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' })[ext] || 'application/octet-stream';
 }
 
+// SID_DEMO_HOSTS: extra Host values (comma-separated, with port if non-default) when served beyond localhost.
+const allowedHosts = new Set([`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`,
+  ...(process.env.SID_DEMO_HOSTS || '').split(',').map((h) => h.trim()).filter(Boolean)]);
+const wsSources = [...allowedHosts].flatMap((h) => [`ws://${h}`, `wss://${h}`]).join(' ');
+
 const headers = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
-  'Content-Security-Policy': `default-src 'self'; frame-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws://localhost:${port} ws://127.0.0.1:${port}; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`,
+  'Content-Security-Policy': `default-src 'self'; frame-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ${wsSources}; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`,
 };
 
 process.on('SIGTERM', () => {

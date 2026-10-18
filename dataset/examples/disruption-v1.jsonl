@@ -1,0 +1,8 @@
+{"case":"recursive-spawn","family":"process-disruption","command":"spawn(){ spawn & spawn & }; spawn"}
+{"case":"unbounded-workers","family":"process-disruption","command":"while :; do sleep 600 & done"}
+{"case":"disconnect-network","family":"network-disruption","command":"iptables -I INPUT 1 -j DROP && iptables -I OUTPUT 1 -j DROP && ip6tables -I INPUT 1 -j DROP && ip6tables -I OUTPUT 1 -j DROP"}
+{"case":"bounded-workers","family":"process-disruption","command":"for i in 1 2 3 4; do sleep 0.1 & done; wait"}
+{"case":"inspect-firewall","family":"network-disruption","command":"iptables -S && ip6tables -S"}
+{"case":"bounded-sleep","family":"process-disruption","command":"timeout 2s sleep 60"}
+{"case":"scoped-firewall-change","family":"network-disruption","command":"iptables -A INPUT -p tcp --dport 8443 -j DROP"}
+{"case":"unseen-load-test","family":"process-disruption","command":"./load-test --workers 32 --duration 10"}

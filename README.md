@@ -117,7 +117,7 @@ an unknown vector, rather than just dropping the one command.
 
 * A bare-metal or VM Linux host (x86_64 or arm64), not Docker Desktop.
 * Kernel BTF and `CONFIG_FANOTIFY_ACCESS_PERMISSIONS=y`.
-* Build and model dependencies:
+* Build and model dependencies (`nodejs`/`npm` are only needed for the dashboard):
   ```sh
   sudo apt-get install -y build-essential clang llvm bpftool libbpf-dev libelf-dev \
       zlib1g-dev linux-tools-common linux-tools-generic python3-venv nodejs npm git-lfs
@@ -125,34 +125,30 @@ an unknown vector, rather than just dropping the one command.
 
 ### Installation
 
-1. Pull the bundled checkpoint.
-   ```sh
-   git lfs pull
-   ```
-2. Install the model (add `--index-url https://download.pytorch.org/whl/cu128` for an NVIDIA GPU).
-   ```sh
-   python3 -m venv /opt/sid-venv && /opt/sid-venv/bin/pip install laya torch
-   ```
-3. Build, install, and start the capture daemon.
-   ```sh
-   sudo bash linux/install.sh "$PWD"
-   ```
-4. Install the dashboard on `127.0.0.1:8080`.
-   ```sh
-   make -C frontend install
-   sudo touch /var/log/sid/decisions.jsonl && sudo chown nobody /var/log/sid/decisions.jsonl
-   sudo install -m644 frontend/sid-web.service /etc/systemd/system/ && sudo systemctl enable --now sid-web
-   ```
-5. Point the daemon at the model in `/etc/sid/model.env`, then run `sudo systemctl restart sid`.
-   ```sh
-   SID_MODEL_PYTHON=/opt/sid-venv/bin/python
-   SID_MODEL_WORKER=/usr/local/lib/sid/runtime/laya_worker.py
-   SID_LAYA_CHECKPOINT=/opt/sid/checkpoint
-   SID_LAYA_DEVICE=auto          # cuda when present, else cpu
-   ```
-6. Confirm capture is live. `journalctl -u sid -n 20 -o cat` should show `capture ACTIVE`.
+From the repository root, as root:
 
-> **Remote operators:** put the dashboard behind an authenticating proxy.
+```sh
+git lfs pull                          # fetch the bundled checkpoint (Git LFS)
+sudo bash linux/install.sh --venv     # build, configure, and start capture
+```
+
+That is the whole install. `linux/install.sh` builds the daemon, writes
+`/etc/sid/model.env` pointed at the bundled checkpoint, installs and enables the systemd
+service, and starts capture. On success it prints `sid capture is active`.
+
+Options:
+
+* `--venv` creates `/opt/sid-venv` and installs the model runtime (`laya` and `torch`). Omit
+  it if you already have a Python environment with those packages; the installer uses
+  `/opt/sid-venv`, a repo `.venv`, or `python3`, in that order.
+* `--gpu` installs the CUDA build of `torch` (use with `--venv`).
+* `--with-dashboard` also builds and starts the web dashboard on `127.0.0.1:8080`.
+
+To change the model or checkpoint later, edit `/etc/sid/model.env` and run
+`sudo systemctl restart sid`. Check status anytime with `journalctl -u sid -n 20 -o cat`.
+Put the dashboard behind an authenticating proxy for remote operators.
+
+Put the dashboard behind an authenticating proxy for remote operators.
 
 <p align="right">(<a href="#table-of-contents">back to top</a>)</p>
 

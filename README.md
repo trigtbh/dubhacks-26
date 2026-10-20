@@ -28,18 +28,34 @@
 - [Usage & Testing](#usage--testing)
 - [Repository Layout](#repository-layout)
 - [Documentation](#documentation)
+- [Roadmap](#roadmap)
 - [License](#license)
 
 ## About
 
-sid captures Linux exec events, reviews uncertain commands through isolated simulation and
-human approval, and prepares data for a local Allow/Hold/Block classifier. The daemon calls
-the model interface in `src/jev.hpp`. `src/jev_laya.cpp` starts a persistent Laya child
-before capture and sends Event JSON to it over a private socket. The child uses the same
-renderer and verdict question as training and evaluation, so the path that ships is the path
-that was tested.
+sid (System Intrusion Detection) judges every command on a host before it runs. More and
+more commands now execute with no human watching: a 2026 honeypot study, "Ghost Without
+Shell," found that 99.23% of logged-in SSH sessions were a script issuing a single command
+and then disconnecting, with nobody at a keyboard. Autonomous agents run long sequences of
+shell commands on their own, and one unauthorized command can escalate from a foothold to
+full control of a machine. sid is a local, offline first line of defense against that.
 
-Everything runs locally. There are no cloud calls in the decision path.
+Each exec is captured before it runs and sent to a fine-tuned Laya model along with its
+context: the parent process and the files it touches. The model returns one of three
+verdicts. Allow runs the command. Block stops a command that is clearly malicious. Hold
+diverts the command to a sandbox, where sid simulates it, watches what it does, and hands it
+to a person for review. Verdicts come back within milliseconds.
+
+Everything runs on the machine itself. There are no cloud calls in the decision path, and no
+special hardware is needed: the model is small enough to run on an average laptop, which
+suits cost-sensitive and privacy-sensitive operators (for example, a nonprofit keeping its
+site from being taken down). A minimal web dashboard shows every decision, offers user and
+admin overrides, and has a detailed statistics view.
+
+The daemon calls the model interface in `src/jev.hpp`. `src/jev_laya.cpp` starts a persistent
+Laya child before capture begins and sends each Event as JSON over a private socket. Dataset
+generation, training, evaluation, and this live path share one renderer and one verdict
+prompt, so the model sees the same input in production that it saw during training.
 
 <p align="right">(<a href="#table-of-contents">back to top</a>)</p>
 
@@ -60,26 +76,34 @@ flowchart LR
 ```
 
 The daemon needs the model to start, and it fails open if the model dies (the service runs
-with `Restart=always`). A Block verdict severs the command's origin.
+with `Restart=always`). On a Block verdict, sid treats the command's whole spawning context
+as compromised and shuts it down. If a web application spawns a malicious shell command, sid
+assumes the shell, and possibly the application that launched it, has been taken over through
+an unknown vector, rather than just dropping the one command.
 
 <p align="right">(<a href="#table-of-contents">back to top</a>)</p>
 
 ## Features
 
-- **Host-wide capture:** every exec is seen through fanotify and eBPF under systemd.
-- **Local classifier:** Laya returns Allow, Hold, or Block with no network call in the decision path.
-- **Isolated simulation:** a held command runs in an overlay sandbox before anyone reviews it.
-- **Human in the loop:** a web dashboard shows held commands and records each verdict.
-- **Fails open:** the daemon restarts on its own and will not wedge the host.
-- **Reproducible pipeline:** dataset generation, annotation, fine-tuning, and evaluation share one renderer.
+- **Host-wide capture:** fanotify (`FAN_OPEN_EXEC_PERM`) pauses every program launch until sid answers, and an eBPF probe supplies the exec record for context. Every userspace command is seen.
+- **Local classifier:** the fine-tuned Laya model returns Allow, Hold, or Block with no network call in the decision path.
+- **Isolated simulation:** a held command runs in an overlayfs sandbox, so its effects never touch the real filesystem, before a person reviews it.
+- **Human in the loop:** the dashboard shows held commands and records each verdict as a yes or no decision.
+- **Containment on Block:** a blocked command's spawning context is treated as compromised and shut down, not just denied.
+- **Learns from history:** past commands and their decisions feed back into the context sid sends the model on later calls.
+- **Fails open:** the daemon runs under systemd with `Restart=always` and will not wedge the host if the model dies.
+- **Reproducible pipeline:** dataset generation, annotation, fine-tuning, and evaluation share the renderer used at runtime.
 
 <p align="right">(<a href="#table-of-contents">back to top</a>)</p>
 
 ## Built With
 
 - **C++17** for the capture daemon, simulation helper, and model interface (`src/`)
-- **eBPF, libbpf, bpftool** for kernel-side exec capture
+- **eBPF** (libbpf, bpftool) for kernel-side exec capture, with **fanotify** as the permission gate and **seccomp-notify** for containerized sessions where eBPF is unavailable
 - **Python and PyTorch** for the Laya worker and the dataset and training tooling
+- **Laya**, the local decision model, fine-tuned on roughly 11,000 unique commands and contexts
+- **overlayfs** for sandboxed simulation of held commands
+- **Atomic Red Team** and **GTFOBins** (offensive) and **NL2Bash** (benign) as training data sources
 - **Node.js** for the review dashboard (`frontend/`)
 - **systemd** for service management (`sid.service`, `sid-web.service`)
 
@@ -188,6 +212,16 @@ separate. `.data/`, `models/`, and `.venv/` are ignored local symlinks.
 - [Data generation, annotation, training and evaluation](dataset/README.md)
 - [Model startup and configuration](runtime/README.md)
 - [Dataset and experiment history](dataset/HISTORY.md)
+
+<p align="right">(<a href="#table-of-contents">back to top</a>)</p>
+
+## Roadmap
+
+- Harden sid against attacks aimed at sid itself. The current threat model assumes userspace
+  adversaries; an attacker already running at kernel level has the same reach as sid and
+  could disable it.
+- Expand the training data, including commands and context drawn from Capture-the-Flag
+  write-ups, which record real attacker commands in their original setting.
 
 <p align="right">(<a href="#table-of-contents">back to top</a>)</p>
 

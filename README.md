@@ -12,44 +12,52 @@ The child uses the same renderer and verdict question as training and evaluation
 - [Proposed event-capture improvements](dataset/RUNTIME_BRIEF.md)
 - [Dataset and experiment history](dataset/HISTORY.md)
 
-## Installing SID on a Linux host (admins)
+## Getting Started
 
-`./sandbox.sh` is the demo. A real install captures every exec host-wide with
-fanotify + eBPF under systemd, so it needs a bare-metal or VM Linux host (x86_64
-or arm64) with `CONFIG_FANOTIFY_ACCESS_PERMISSIONS=y` and kernel BTF — not Docker
-Desktop. It runs as root.
+`./sandbox.sh` is the demo. The steps below install host-wide capture for real. Run as root.
 
-```sh
-# 1. build + model deps
-sudo apt-get install -y build-essential clang llvm bpftool libbpf-dev libelf-dev \
-    zlib1g-dev linux-tools-common linux-tools-generic python3-venv nodejs npm git-lfs
-git lfs pull                                    # the bundled checkpoint
-python3 -m venv /opt/sid-venv && /opt/sid-venv/bin/pip install laya torch
-#   (torch: add --index-url https://download.pytorch.org/whl/cu128 for an NVIDIA GPU)
+### Prerequisites
 
-# 2. capture daemon  (builds, installs, starts sid.service)
-sudo bash linux/install.sh "$PWD"
+* A bare-metal or VM Linux host (x86_64 or arm64) — **not** Docker Desktop.
+* Kernel BTF and `CONFIG_FANOTIFY_ACCESS_PERMISSIONS=y`.
+* Build and model dependencies:
+  ```sh
+  sudo apt-get install -y build-essential clang llvm bpftool libbpf-dev libelf-dev \
+      zlib1g-dev linux-tools-common linux-tools-generic python3-venv nodejs npm git-lfs
+  ```
 
-# 3. dashboard on 127.0.0.1:8080
-make -C frontend install
-sudo touch /var/log/sid/decisions.jsonl && sudo chown nobody /var/log/sid/decisions.jsonl
-sudo install -m644 frontend/sid-web.service /etc/systemd/system/ && sudo systemctl enable --now sid-web
-```
+### Installation
 
-Point the daemon at the model in `/etc/sid/model.env` (read by `sid.service`), then
-`sudo systemctl restart sid`:
+1. Pull the bundled checkpoint.
+   ```sh
+   git lfs pull
+   ```
+2. Install the model (add `--index-url https://download.pytorch.org/whl/cu128` for an NVIDIA GPU).
+   ```sh
+   python3 -m venv /opt/sid-venv && /opt/sid-venv/bin/pip install laya torch
+   ```
+3. Build, install, and start the capture daemon.
+   ```sh
+   sudo bash linux/install.sh "$PWD"
+   ```
+4. Install the dashboard on `127.0.0.1:8080`.
+   ```sh
+   make -C frontend install
+   sudo touch /var/log/sid/decisions.jsonl && sudo chown nobody /var/log/sid/decisions.jsonl
+   sudo install -m644 frontend/sid-web.service /etc/systemd/system/ && sudo systemctl enable --now sid-web
+   ```
+5. Point the daemon at the model in `/etc/sid/model.env`, then `sudo systemctl restart sid`.
+   ```sh
+   SID_MODEL_PYTHON=/opt/sid-venv/bin/python
+   SID_MODEL_WORKER=/usr/local/lib/sid/runtime/laya_worker.py
+   SID_LAYA_CHECKPOINT=/opt/sid/checkpoint
+   SID_LAYA_DEVICE=auto          # cuda when present, else cpu
+   ```
+6. Confirm capture is live — `journalctl -u sid -n 20 -o cat` should show `capture ACTIVE`.
 
-```sh
-SID_MODEL_PYTHON=/opt/sid-venv/bin/python
-SID_MODEL_WORKER=/usr/local/lib/sid/runtime/laya_worker.py
-SID_LAYA_CHECKPOINT=/opt/sid/checkpoint
-SID_LAYA_DEVICE=auto          # cuda when present, else cpu
-```
-
-`journalctl -u sid -n 20 -o cat` should show `capture ACTIVE`. Notes: the daemon
-needs the model to start; it **fails open** if it dies (hence `Restart=always`);
-a denial severs the command's origin; put the dashboard behind an authenticating
-proxy for remote operators.
+Notes: the daemon needs the model to start; it **fails open** if it dies (hence
+`Restart=always`); a denial severs the command's origin; put the dashboard behind an
+authenticating proxy for remote operators.
 
 ## Repository layout
 

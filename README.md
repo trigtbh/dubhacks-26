@@ -125,29 +125,45 @@ an unknown vector, rather than just dropping the one command.
 
 ### Installation
 
-From the repository root, as root:
+On a fresh Debian or Ubuntu host, one command installs the dependencies, fetches the code
+and the bundled checkpoint, builds, and starts capture:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/trigtbh/dubhacks-26/main/linux/bootstrap.sh | sudo bash
+```
+
+Pass build options after `--`, for example a GPU build with the dashboard:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/trigtbh/dubhacks-26/main/linux/bootstrap.sh | sudo bash -s -- --gpu --with-dashboard
+```
+
+Review the script before running it if you prefer. It clones into `/opt/sid/src` (override
+with `SID_REPO`, `SID_REF`, and `SID_DEST`) and then runs `linux/install.sh`.
+
+**From a local checkout.** If you already have the repository, skip the bootstrap and run the
+installer directly, as root:
 
 ```sh
 git lfs pull                          # fetch the bundled checkpoint (Git LFS)
 sudo bash linux/install.sh --venv     # build, configure, and start capture
 ```
 
-That is the whole install. `linux/install.sh` builds the daemon, writes
-`/etc/sid/model.env` pointed at the bundled checkpoint, installs and enables the systemd
-service, and starts capture. On success it prints `sid capture is active`.
+Either way, `linux/install.sh` builds the daemon, writes `/etc/sid/model.env` pointed at the
+bundled checkpoint, installs and enables the systemd service, and starts capture. On success
+it prints `sid capture is active`.
 
-Options:
+Options (accepted by both the bootstrap and the installer):
 
-* `--venv` creates `/opt/sid-venv` and installs the model runtime (`laya` and `torch`). Omit
-  it if you already have a Python environment with those packages; the installer uses
-  `/opt/sid-venv`, a repo `.venv`, or `python3`, in that order.
+* `--venv` creates `/opt/sid-venv` and installs the model runtime (`laya` and `torch`). The
+  bootstrap passes it for you. Omit it on a direct run if you already have a Python
+  environment with those packages; the installer uses `/opt/sid-venv`, a repo `.venv`, or
+  `python3`, in that order.
 * `--gpu` installs the CUDA build of `torch` (use with `--venv`).
 * `--with-dashboard` also builds and starts the web dashboard on `127.0.0.1:8080`.
 
 To change the model or checkpoint later, edit `/etc/sid/model.env` and run
 `sudo systemctl restart sid`. Check status anytime with `journalctl -u sid -n 20 -o cat`.
-Put the dashboard behind an authenticating proxy for remote operators.
-
 Put the dashboard behind an authenticating proxy for remote operators.
 
 <p align="right">(<a href="#table-of-contents">back to top</a>)</p>

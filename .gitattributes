@@ -1,6 +1,0 @@
-# Scripts run inside Linux containers/VMs: CRLF from a Windows checkout breaks them ("bash\r: not found").
-* text=auto eol=lf
-*.sh text eol=lf
-Makefile text eol=lf
-*.safetensors filter=lfs diff=lfs merge=lfs -text
-* !text !filter !merge !diff
